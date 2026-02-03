@@ -1,0 +1,2557 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>公關部媒體業務進度管理</title>
+  <script src="https://script.google.com/macros/s/AKfycbxYP2SvHcbjjjxswRu1aF41mnGZ8Wc2ha2IW7-OREQsa9hE0muewCnhzrdLfRX2KrQCkw/exec"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { 
+      font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    html, body { 
+      height: 100%;
+      width: 100%;
+    }
+    #root {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    .glass-effect {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .gradient-header {
+      background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 50%, #172554 100%);
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .gradient-bg {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0f172a 100%);
+    }
+    .project-card {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+      cursor: move;
+      border: 2px solid transparent;
+    }
+    .project-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+    .project-card.dragging {
+      opacity: 0.7;
+      z-index: 50;
+    }
+    .project-card.drag-over {
+      border-color: #3b82f6;
+      background-color: rgba(59, 130, 246, 0.05);
+      transform: scale(1.02);
+    }
+    .input-field {
+      background: rgba(255, 255, 255, 0.5);
+      border: 2px solid rgba(209, 213, 219, 0.5);
+      transition: all 0.3s ease;
+    }
+    .input-field:focus {
+      background: white;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+      outline: none;
+    }
+    .btn-modern {
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    .btn-modern:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    }
+    .modal-overlay {
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(12px);
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .status-active {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    .icon-btn {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+    }
+    .icon-btn:hover {
+      transform: scale(1.1);
+    }
+    .toast {
+      animation: slideInRight 0.3s ease;
+    }
+    @keyframes slideInRight {
+      from {
+        opacity: 0;
+        transform: translateX(100px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: auto;
+      width: 100%;
+    }
+    .categories-wrapper {
+      display: flex;
+      gap: 24px;
+      padding: 24px;
+      min-height: 100%;
+      min-width: min-content;
+    }
+    .category-column {
+      flex: 0 0 400px;
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+      border-radius: 20px;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+    .category-header {
+      padding: 20px;
+      flex-shrink: 0;
+      border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+      background: linear-gradient(135deg, var(--category-color, #3b82f6) 0%, var(--category-color-dark, #1d4ed8) 100%);
+    }
+    .category-header h2 {
+      margin: 0;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .category-header-controls {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .projects-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .project-card {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .project-card.active-project {
+      background: var(--category-color-light, #eff6ff);
+      border: 2px solid var(--category-color, #3b82f6);
+    }
+    .project-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #1f2937;
+      margin: 0;
+      word-break: break-word;
+    }
+    .project-active-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--category-color, #3b82f6);
+      color: white;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: bold;
+      width: fit-content;
+    }
+    .active-pulse {
+      width: 8px;
+      height: 8px;
+      background: white;
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .staff-assignment {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      background: #f3f4f6;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .staff-role {
+      padding: 4px 8px;
+      background: var(--category-color, #3b82f6);
+      color: white;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 11px;
+      white-space: nowrap;
+      min-width: fit-content;
+    }
+    .staff-name {
+      color: #374151;
+      font-weight: 600;
+      flex: 1;
+      word-break: break-word;
+    }
+    .notes-field {
+      background: #fef3c7;
+      border-left: 3px solid #f59e0b;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #92400e;
+      min-height: 32px;
+      display: flex;
+      align-items: center;
+      word-break: break-word;
+      line-height: 1.4;
+    }
+    .notes-empty {
+      color: #d1d5db;
+      font-style: italic;
+    }
+    .drag-handle {
+      cursor: grab;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      color: #9ca3af;
+      flex-shrink: 0;
+    }
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+    .project-controls {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+      margin-top: 4px;
+    }
+    .project-btn {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .project-btn-edit {
+      background: #e0e7ff;
+      color: #3b82f6;
+    }
+    .project-btn-edit:hover {
+      background: #c7d2fe;
+    }
+    .project-btn-delete {
+      background: #fee2e2;
+      color: #ef4444;
+    }
+    .project-btn-delete:hover {
+      background: #fecaca;
+    }
+    .empty-column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      color: #9ca3af;
+      text-align: center;
+    }
+    .empty-column svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 12px;
+      opacity: 0.3;
+    }
+    .rotation-badge {
+      background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-weight: bold;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+    }
+    .rotation-badge:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+    }
+    .rotation-item {
+      background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all 0.2s;
+    }
+    .rotation-item:hover {
+      background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+      transform: translateX(4px);
+    }
+    .rotation-label {
+      font-weight: bold;
+      color: #374151;
+      min-width: 100px;
+      flex-shrink: 0;
+    }
+    .rotation-staff {
+      background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-weight: bold;
+      flex: 1;
+    }
+    .rotation-order-item {
+      background: white;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 2px solid #e5e7eb;
+      cursor: move;
+      transition: all 0.2s;
+    }
+    .rotation-order-item:hover {
+      border-color: #8b5cf6;
+      background: #f9f5ff;
+    }
+    .rotation-order-item.dragging {
+      opacity: 0.5;
+      transform: scale(0.95);
+    }
+    .rotation-order-handle {
+      cursor: grab;
+      color: #9ca3af;
+      flex-shrink: 0;
+    }
+    .rotation-order-handle:active {
+      cursor: grabbing;
+    }
+    .rotation-job-item {
+      background: white;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 2px solid #e5e7eb;
+      cursor: move;
+      transition: all 0.2s;
+    }
+    .rotation-job-item:hover {
+      border-color: #10b981;
+      background: #f0fdf4;
+    }
+    .rotation-job-item.dragging {
+      opacity: 0.5;
+      transform: scale(0.95);
+    }
+    .yearly-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+      max-height: 70vh;
+      overflow-y: auto;
+      padding: 4px;
+    }
+    .month-card {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      border-left: 4px solid #8b5cf6;
+    }
+    .month-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #8b5cf6;
+      margin-bottom: 12px;
+    }
+    .month-item {
+      font-size: 13px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .month-item-label {
+      font-weight: bold;
+      color: #374151;
+      min-width: 80px;
+    }
+    .month-item-staff {
+      background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+      color: white;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .color-palette {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+      margin: 16px 0;
+    }
+    .color-option {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 12px;
+      border: 3px solid transparent;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    .color-option:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    }
+    .color-option.selected {
+      border-color: white;
+      box-shadow: 0 0 0 3px #fff, 0 6px 20px rgba(0, 0, 0, 0.3);
+    }
+    .category-color-editor {
+      background: linear-gradient(135deg, #f0f9ff 0%, #f8fafc 100%);
+      border: 2px solid #e0e7ff;
+      border-radius: 16px;
+      padding: 16px;
+      margin-top: 12px;
+    }
+    .category-color-label {
+      font-size: 13px;
+      font-weight: bold;
+      color: #475569;
+      margin-bottom: 10px;
+      display: block;
+    }
+    /* Calendar Styles */
+    .calendar-container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    .calendar-header {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      padding: 20px;
+      color: white;
+    }
+    .calendar-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .calendar-nav button {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .calendar-nav button:hover {
+      background: rgba(255,255,255,0.3);
+    }
+    .calendar-title {
+      font-size: 24px;
+      font-weight: bold;
+    }
+    .calendar-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      background: #f8fafc;
+      padding: 10px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .calendar-weekday {
+      text-align: center;
+      font-weight: 600;
+      color: #64748b;
+      font-size: 14px;
+    }
+    .calendar-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+      padding: 8px;
+      background: #f1f5f9;
+    }
+    .calendar-day {
+      min-height: 100px;
+      background: white;
+      border-radius: 8px;
+      padding: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .calendar-day:hover {
+      background: #f0fdf4;
+      transform: scale(1.02);
+    }
+    .calendar-day.other-month {
+      background: #f8fafc;
+      opacity: 0.5;
+    }
+    .calendar-day.today {
+      background: #ecfdf5;
+      border: 2px solid #10b981;
+    }
+    .calendar-day-number {
+      font-weight: 600;
+      color: #374151;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+    .calendar-day.today .calendar-day-number {
+      color: #10b981;
+    }
+    .calendar-event {
+      font-size: 11px;
+      padding: 3px 6px;
+      border-radius: 4px;
+      margin-bottom: 2px;
+      color: white;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .calendar-event:hover {
+      transform: scale(1.02);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .event-color-selector {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 12px 0;
+    }
+    .event-color-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 3px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .event-color-btn:hover {
+      transform: scale(1.1);
+    }
+    .event-color-btn.selected {
+      border-color: #374151;
+      box-shadow: 0 0 0 2px white, 0 0 0 4px #374151;
+    }
+    .view-toggle {
+      display: flex;
+      background: rgba(255,255,255,0.2);
+      border-radius: 10px;
+      padding: 4px;
+    }
+    .view-toggle button {
+      padding: 8px 16px;
+      border: none;
+      background: transparent;
+      color: white;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .view-toggle button.active {
+      background: white;
+      color: #10b981;
+    }
+    .tab-btn {
+      padding: 10px 20px;
+      border: none;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tab-btn:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    .tab-btn.active {
+      background: white;
+      color: #1e40af;
+    }
+  </style>
+</head>
+<body class="gradient-bg m-0 p-0">
+  <div id="root" class="w-full h-full">
+    <!-- Main Dashboard -->
+    <div id="main-dashboard" class="w-full h-full flex flex-col">
+      <!-- Header -->
+      <header class="gradient-header shadow-2xl px-6 py-6 relative z-10">
+        <div class="relative z-10">
+          <div class="flex items-center justify-between max-w-full mx-auto mb-4">
+            <div class="flex items-center gap-4">
+              <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-white/30 to-white/10 flex items-center justify-center shadow-xl backdrop-blur">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div id="header-text-block">
+                <!-- 非管理員：靜態顯示 -->
+                <div id="header-display">
+                  <h1 id="dashboard-title" class="text-2xl font-bold text-white">公關部媒體業務進度管理</h1>
+                  <p id="header-subtitle-display" class="text-blue-100 text-sm font-medium">Media Project Management System</p>
+                  <p id="header-extra-display" class="text-blue-200 text-xs font-normal mt-0.5 hidden"></p>
+                </div>
+                <!-- 管理員：可編輯輸入欄 -->
+                <div id="header-edit" class="hidden flex flex-col gap-1">
+                  <input id="header-title-input" type="text" value="公關部媒體業務進度管理"
+                    class="bg-white/20 border border-white/30 focus:border-white focus:outline-none rounded-lg px-3 py-1 text-white font-bold text-xl w-full placeholder-white/50"
+                    placeholder="輸入標題">
+                  <input id="header-subtitle-input" type="text" value="Media Project Management System"
+                    class="bg-white/10 border border-white/20 focus:border-white/60 focus:outline-none rounded-lg px-3 py-1 text-blue-100 text-sm w-full placeholder-blue-300/50"
+                    placeholder="輸入副標題">
+                  <input id="header-extra-input" type="text" value=""
+                    class="bg-white/10 border border-white/20 focus:border-white/60 focus:outline-none rounded-lg px-3 py-1 text-blue-200 text-xs w-full placeholder-blue-300/50"
+                    placeholder="附加資訊（可省略）">
+                  <button onclick="saveHeaderInfo()" class="self-start mt-1 px-3 py-0.5 bg-white/25 hover:bg-white/40 text-white rounded-md text-xs font-bold transition-all">儲存</button>
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <!-- Tab Buttons -->
+              <div class="flex gap-2 mr-4">
+                <button onclick="switchTab('board')" id="tab-board" class="tab-btn active">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                  </svg>
+                  看板
+                </button>
+                <button onclick="switchTab('calendar')" id="tab-calendar" class="tab-btn">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  月曆
+                </button>
+              </div>
+              <span id="admin-badge" class="hidden px-4 py-2 bg-amber-300/90 text-amber-900 rounded-full text-sm font-bold shadow-lg">管理員模式</span>
+              <button onclick="showModal('settings')" id="settings-btn" class="hidden icon-btn bg-white/20 hover:bg-white/30 text-white font-bold shadow-lg" title="系統設定">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+              </button>
+              <button onclick="showAdminLogin()" id="admin-btn" class="icon-btn bg-white/20 hover:bg-white/30 text-white font-bold shadow-lg" title="管理員登入">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <!-- Rotation System (only show on board tab) -->
+          <div id="rotation-header" class="flex items-center gap-4 flex-wrap">
+            <div id="rotation-container" class="flex-1 min-w-0"></div>
+            <button onclick="showModal('manage-rotation')" id="rotation-manage-btn" class="hidden px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg font-bold shadow-lg transition-all flex items-center gap-2" title="輪值設定">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>輪值設定</span>
+            </button>
+          </div>
+        </div>
+      </header>
+      
+      <!-- Admin Controls -->
+      <div id="admin-controls" class="hidden bg-white/95 backdrop-blur px-6 py-4 border-b border-blue-200 shadow-md flex-shrink-0">
+        <div class="flex flex-wrap gap-3">
+          <button onclick="showModal('add-category')" class="btn-modern px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold shadow-lg hover:shadow-xl flex items-center gap-2 text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            新增類別
+          </button>
+          <button onclick="showModal('manage-staff')" class="btn-modern px-5 py-2 rounded-xl bg-white text-gray-700 font-bold shadow-lg hover:shadow-xl border-2 border-gray-200 flex items-center gap-2 text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            管理人員
+          </button>
+          <button onclick="showModal('manage-roles')" class="btn-modern px-5 py-2 rounded-xl bg-white text-gray-700 font-bold shadow-lg hover:shadow-xl border-2 border-gray-200 flex items-center gap-2 text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            管理職稱
+          </button>
+        </div>
+      </div>
+      
+      <!-- Board Content Area -->
+      <main id="board-content" class="main-content w-full overflow-auto bg-gradient-to-b from-slate-50 to-slate-100">
+        <div id="categories-container" class="categories-wrapper">
+          <!-- Categories will be rendered here -->
+        </div>
+        <!-- Empty State -->
+        <div id="empty-state" class="hidden text-center py-20 w-full">
+          <div class="inline-block">
+            <div class="w-32 h-32 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center shadow-lg">
+              <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </div>
+            <h3 class="text-2xl font-bold text-gray-700 mb-3">尚無製作類別</h3>
+            <p class="text-gray-500 text-lg mb-6">請管理員登入後新增製作類別</p>
+          </div>
+        </div>
+      </main>
+      
+      <!-- Calendar Content Area -->
+      <main id="calendar-content" class="main-content w-full overflow-auto bg-gradient-to-b from-slate-50 to-slate-100 hidden">
+        <div class="p-6">
+          <div class="calendar-container max-w-6xl mx-auto">
+            <div class="calendar-header">
+              <div class="calendar-nav">
+                <button onclick="changeMonth(-1)">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <h2 id="calendar-title" class="calendar-title">2024年1月</h2>
+                <button onclick="changeMonth(1)">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+              <div class="flex justify-between items-center">
+                <button onclick="goToToday()" class="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg font-bold text-sm transition-all">今天</button>
+                <button onclick="showModal('add-event')" id="add-event-btn" class="hidden px-4 py-2 bg-white text-emerald-600 rounded-lg font-bold text-sm transition-all hover:bg-emerald-50 flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                  新增活動
+                </button>
+              </div>
+            </div>
+            <div class="calendar-weekdays">
+              <div class="calendar-weekday">日</div>
+              <div class="calendar-weekday">一</div>
+              <div class="calendar-weekday">二</div>
+              <div class="calendar-weekday">三</div>
+              <div class="calendar-weekday">四</div>
+              <div class="calendar-weekday">五</div>
+              <div class="calendar-weekday">六</div>
+            </div>
+            <div id="calendar-days" class="calendar-days">
+              <!-- Calendar days will be rendered here -->
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal Container -->
+  <div id="modal-container" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay">
+    <div id="modal-content" class="glass-effect rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto border border-white/30">
+      <!-- Modal content will be injected here -->
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed bottom-6 right-6 z-50 space-y-3 pointer-events-none"></div>
+
+  <script>
+    const ADMIN_PASSWORD = 'cch9031';
+    const DEFAULT_STAFF = ['黃月芳', '沈聖涵', '吉洋舒度'];
+    const DEFAULT_ROLES = ['場記', '錄影', '後製'];
+    const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+    
+    // Google Apps Script Web App URL - Set this after deploying your script
+    let GOOGLE_SCRIPT_URL = localStorage.getItem('google_script_url') || '';
+    let useGoogleSheets = !!GOOGLE_SCRIPT_URL;
+    
+    const COLOR_PALETTE = [
+      { hex: '#3b82f6', dark: '#1d4ed8', light: '#eff6ff', name: '藍色' },
+      { hex: '#ef4444', dark: '#b91c1c', light: '#fef2f2', name: '紅色' },
+      { hex: '#10b981', dark: '#047857', light: '#f0fdf4', name: '綠色' },
+      { hex: '#f59e0b', dark: '#b45309', light: '#fffbeb', name: '金色' },
+      { hex: '#8b5cf6', dark: '#6d28d9', light: '#faf5ff', name: '紫色' },
+      { hex: '#06b6d4', dark: '#0891b2', light: '#ecf9ff', name: '青色' },
+      { hex: '#ec4899', dark: '#be185d', light: '#fdf2f8', name: '粉紅' },
+      { hex: '#14b8a6', dark: '#0d9488', light: '#f0fdfa', name: '綠松色' },
+      { hex: '#f97316', dark: '#c2410c', light: '#fff7ed', name: '橙色' },
+      { hex: '#6366f1', dark: '#4f46e5', light: '#f8f8ff', name: '靛藍色' }
+    ];
+
+    const EVENT_COLORS = [
+      { hex: '#ef4444', name: '紅色' },
+      { hex: '#f97316', name: '橙色' },
+      { hex: '#f59e0b', name: '金色' },
+      { hex: '#10b981', name: '綠色' },
+      { hex: '#06b6d4', name: '青色' },
+      { hex: '#3b82f6', name: '藍色' },
+      { hex: '#8b5cf6', name: '紫色' },
+      { hex: '#ec4899', name: '粉紅' },
+      { hex: '#6b7280', name: '灰色' }
+    ];
+
+    let isAdmin = false;
+    let allData = [];
+    let calendarEvents = [];
+    let currentTab = 'board';
+    let currentCalendarDate = new Date();
+    let draggedCard = null;
+    let dragSource = null;
+    let draggedRotationOrder = null;
+    let draggedJobOrder = null;
+
+    // LocalStorage keys
+    const STORAGE_KEYS = {
+      data: 'media_management_data',
+      events: 'media_management_events'
+    };
+
+    // Initialize
+    async function init() {
+      // Try to load from Google Sheets first if connected
+      if (useGoogleSheets) {
+        const loaded = await loadFromGoogleSheets();
+        if (!loaded) {
+          loadDataFromStorage();
+        }
+      } else {
+        loadDataFromStorage();
+      }
+      
+      renderDashboard();
+      renderCurrentMonthRotation();
+      renderCalendar();
+      updateAdminUI();
+      loadHeaderInfo();
+    }
+
+    // Storage functions
+    function loadDataFromStorage() {
+      const savedData = localStorage.getItem(STORAGE_KEYS.data);
+      const savedEvents = localStorage.getItem(STORAGE_KEYS.events);
+      
+      if (savedData) {
+        allData = JSON.parse(savedData);
+      } else {
+        // Initialize with default data
+        initializeDefaultData();
+      }
+      
+      if (savedEvents) {
+        calendarEvents = JSON.parse(savedEvents);
+      }
+    }
+
+    function saveDataToStorage() {
+      localStorage.setItem(STORAGE_KEYS.data, JSON.stringify(allData));
+      // Sync to Google Sheets if connected
+      if (useGoogleSheets) {
+        syncWithGoogleSheets();
+      }
+    }
+
+    function saveEventsToStorage() {
+      localStorage.setItem(STORAGE_KEYS.events, JSON.stringify(calendarEvents));
+      // Sync to Google Sheets if connected
+      if (useGoogleSheets) {
+        syncWithGoogleSheets();
+      }
+    }
+
+    function initializeDefaultData() {
+      // Add default staff
+      DEFAULT_STAFF.forEach((name, idx) => {
+        allData.push({
+          __backendId: 'staff_' + Date.now() + '_' + idx,
+          type: 'staff',
+          name: name
+        });
+      });
+      
+      // Add default roles
+      DEFAULT_ROLES.forEach((name, idx) => {
+        allData.push({
+          __backendId: 'role_' + Date.now() + '_' + idx,
+          type: 'role',
+          name: name
+        });
+      });
+      
+      // Add rotation order
+      allData.push({
+        __backendId: 'rotation_order_' + Date.now(),
+        type: 'rotation_order',
+        order_list: JSON.stringify(DEFAULT_STAFF)
+      });
+      
+      // Add default rotations
+      DEFAULT_ROLES.forEach((role, idx) => {
+        allData.push({
+          __backendId: 'rotation_' + Date.now() + '_' + idx,
+          type: 'rotation',
+          job_name: role,
+          starting_month: 0,
+          rotation_order: idx,
+          notes: ''
+        });
+      });
+      
+      saveDataToStorage();
+    }
+
+    // Generate unique ID
+    function generateId() {
+      return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
+    // Data helper functions
+    function getCategories() {
+      return allData.filter(d => d.type === 'category');
+    }
+
+    function getProjects() {
+      return allData.filter(d => d.type === 'project');
+    }
+
+    function getAssignments() {
+      return allData.filter(d => d.type === 'assignment');
+    }
+
+    function getStaffList() {
+      return allData.filter(d => d.type === 'staff');
+    }
+
+    function getRolesList() {
+      return allData.filter(d => d.type === 'role');
+    }
+
+    function getRotations() {
+      return allData.filter(d => d.type === 'rotation').sort((a, b) => (a.rotation_order || 0) - (b.rotation_order || 0));
+    }
+
+    function getRotationOrder() {
+      const order = allData.find(d => d.type === 'rotation_order');
+      return order ? JSON.parse(order.order_list || '[]') : [];
+    }
+
+    function getProjectsForCategory(categoryId) {
+      return getProjects()
+        .filter(p => p.category_id === categoryId)
+        .sort((a, b) => {
+          if (a.is_active !== b.is_active) {
+            return a.is_active ? -1 : 1;
+          }
+          return (a.sort_order || 0) - (b.sort_order || 0);
+        });
+    }
+
+    function getCurrentMonth() {
+      return new Date().getMonth();
+    }
+
+    function getRotationForMonthAndJob(month, jobIndex) {
+      const rotations = getRotations();
+      const order = getRotationOrder();
+      
+      if (order.length === 0 || jobIndex >= rotations.length) return '';
+      
+      const rotation = rotations[jobIndex];
+      const startingMonth = parseInt(rotation.starting_month) || 0;
+      const monthOffset = (month - startingMonth + 12) % 12;
+      const staffIndex = (jobIndex - monthOffset % order.length + order.length) % order.length;
+      
+      return order[staffIndex] || '';
+    }
+
+    // Tab switching
+    function switchTab(tab) {
+      currentTab = tab;
+      
+      // Update tab buttons
+      document.getElementById('tab-board').classList.toggle('active', tab === 'board');
+      document.getElementById('tab-calendar').classList.toggle('active', tab === 'calendar');
+      
+      // Update content visibility
+      document.getElementById('board-content').classList.toggle('hidden', tab !== 'board');
+      document.getElementById('calendar-content').classList.toggle('hidden', tab !== 'calendar');
+      document.getElementById('rotation-header').classList.toggle('hidden', tab !== 'board');
+      document.getElementById('admin-controls').classList.toggle('hidden', !isAdmin || tab !== 'board');
+      
+      // Update add event button visibility
+      document.getElementById('add-event-btn').classList.toggle('hidden', !isAdmin);
+      
+      if (tab === 'calendar') {
+        renderCalendar();
+      }
+    }
+
+    // Calendar functions
+    function renderCalendar() {
+      const year = currentCalendarDate.getFullYear();
+      const month = currentCalendarDate.getMonth();
+      
+      // Update title
+      document.getElementById('calendar-title').textContent = `${year}年${month + 1}月`;
+      
+      // Get first day of month and total days
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      const startingDay = firstDay.getDay();
+      const totalDays = lastDay.getDate();
+      
+      // Get today
+      const today = new Date();
+      const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+      
+      let html = '';
+      
+      // Previous month days
+      const prevMonthLastDay = new Date(year, month, 0).getDate();
+      for (let i = startingDay - 1; i >= 0; i--) {
+        const day = prevMonthLastDay - i;
+        const dateStr = formatDate(new Date(year, month - 1, day));
+        html += `<div class="calendar-day other-month" onclick="showDayEvents('${dateStr}')">
+          <div class="calendar-day-number">${day}</div>
+        </div>`;
+      }
+      
+      // Current month days
+      for (let day = 1; day <= totalDays; day++) {
+        const dateStr = formatDate(new Date(year, month, day));
+        const isToday = isCurrentMonth && today.getDate() === day;
+        const dayEvents = calendarEvents.filter(e => e.date === dateStr);
+        
+        let eventsHtml = '';
+        dayEvents.slice(0, 3).forEach(event => {
+          // Only allow editing if admin is logged in
+          if (isAdmin) {
+            eventsHtml += `<div class="calendar-event" style="background: ${event.color};" onclick="event.stopPropagation(); showModal('edit-event', {eventId: '${event.id}'})">${event.title}${event.link ? ' 🔗' : ''}</div>`;
+          } else {
+            const clickAction = event.link ? `window.open('${event.link}', '_blank')` : `showModal('view-event', {eventId: '${event.id}'})`;
+            eventsHtml += `<div class="calendar-event" style="background: ${event.color}; cursor: ${event.link ? 'pointer' : 'default'};" onclick="event.stopPropagation(); ${clickAction}" title="${event.link || ''}">${event.title}${event.link ? ' 🔗' : ''}</div>`;
+          }
+        });
+        if (dayEvents.length > 3) {
+          eventsHtml += `<div class="text-xs text-gray-500 font-medium">+${dayEvents.length - 3} 更多</div>`;
+        }
+        
+        html += `<div class="calendar-day ${isToday ? 'today' : ''}" onclick="showDayEvents('${dateStr}')">
+          <div class="calendar-day-number">${day}</div>
+          ${eventsHtml}
+        </div>`;
+      }
+      
+      // Next month days
+      const remainingDays = 42 - (startingDay + totalDays);
+      for (let day = 1; day <= remainingDays; day++) {
+        const dateStr = formatDate(new Date(year, month + 1, day));
+        html += `<div class="calendar-day other-month" onclick="showDayEvents('${dateStr}')">
+          <div class="calendar-day-number">${day}</div>
+        </div>`;
+      }
+      
+      document.getElementById('calendar-days').innerHTML = html;
+    }
+
+    function formatDate(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function changeMonth(delta) {
+      currentCalendarDate.setMonth(currentCalendarDate.getMonth() + delta);
+      renderCalendar();
+    }
+
+    function goToToday() {
+      currentCalendarDate = new Date();
+      renderCalendar();
+    }
+
+    function showDayEvents(dateStr) {
+      const dayEvents = calendarEvents.filter(e => e.date === dateStr);
+      if (isAdmin) {
+        showModal('day-events', { date: dateStr });
+      } else if (dayEvents.length > 0) {
+        // Non-admin users can only view events, not edit
+        showModal('view-day-events', { date: dateStr, events: dayEvents });
+      }
+      // If no events and not admin, do nothing (can't add events)
+    }
+
+    function addEvent(date = null) {
+      if (!isAdmin) { showToast('僅管理員可以新增活動', 'error'); closeModal(); return; }
+      const title = document.getElementById('event-title').value.trim();
+      const eventDate = date || document.getElementById('event-date').value;
+      const color = document.getElementById('event-color').value;
+      const notes = document.getElementById('event-notes').value.trim();
+      
+      if (!title || !eventDate) {
+        showToast('請填寫活動標題和日期', 'error');
+        return;
+      }
+      
+      const link = document.getElementById('event-link').value.trim();
+
+      const newEvent = {
+        id: generateId(),
+        title: title,
+        date: eventDate,
+        color: color,
+        notes: notes,
+        link: link
+      };
+      
+      calendarEvents.push(newEvent);
+      saveEventsToStorage();
+      closeModal();
+      renderCalendar();
+      showToast('活動已新增', 'success');
+    }
+
+    function updateEvent(eventId) {
+      if (!isAdmin) { showToast('僅管理員可以編輯活動', 'error'); closeModal(); return; }
+      const title = document.getElementById('event-title').value.trim();
+      const eventDate = document.getElementById('event-date').value;
+      const color = document.getElementById('event-color').value;
+      const notes = document.getElementById('event-notes').value.trim();
+      
+      if (!title || !eventDate) {
+        showToast('請填寫活動標題和日期', 'error');
+        return;
+      }
+      
+      const link = document.getElementById('event-link').value.trim();
+
+      const eventIndex = calendarEvents.findIndex(e => e.id === eventId);
+      if (eventIndex !== -1) {
+        calendarEvents[eventIndex] = {
+          ...calendarEvents[eventIndex],
+          title: title,
+          date: eventDate,
+          color: color,
+          notes: notes,
+        link: link
+        };
+        saveEventsToStorage();
+        closeModal();
+        renderCalendar();
+        showToast('活動已更新', 'success');
+      }
+    }
+
+    function deleteEvent(eventId) {
+      if (!isAdmin) { showToast('僅管理員可以刪除活動', 'error'); closeModal(); return; }
+      if (confirm('確定要刪除此活動嗎？')) {
+        calendarEvents = calendarEvents.filter(e => e.id !== eventId);
+        saveEventsToStorage();
+        closeModal();
+        renderCalendar();
+        showToast('活動已刪除', 'success');
+      }
+    }
+
+    // Render current month rotation
+    function renderCurrentMonthRotation() {
+      const container = document.getElementById('rotation-container');
+      if (!container) return;
+      
+      const rotations = getRotations();
+      const currentMonth = getCurrentMonth();
+      const order = getRotationOrder();
+      
+      if (rotations.length === 0 || order.length === 0) {
+        container.innerHTML = '';
+        return;
+      }
+      
+      let html = '<div class="flex items-center gap-3 flex-wrap">';
+      html += '<span class="text-white font-bold text-sm">' + MONTHS[currentMonth] + ' 輪值：</span>';
+      html += '<div class="flex gap-2 flex-wrap">';
+      
+      rotations.forEach((rotation, jobIdx) => {
+        const staff = getRotationForMonthAndJob(currentMonth, jobIdx);
+        html += '<div class="rotation-badge">';
+        html += '<span>' + rotation.job_name + '：' + (staff || '未設定') + '</span>';
+        html += '</div>';
+      });
+      
+      html += '</div>';
+      
+      if (rotations.length > 0 && rotations[0].notes) {
+        html += '<div class="bg-amber-50 px-3 py-2 rounded-lg border-2 border-amber-200 text-sm">';
+        html += '<span class="font-bold text-amber-900">輪值備註：</span>';
+        html += '<span class="text-amber-800">' + rotations[0].notes + '</span>';
+        html += '</div>';
+      }
+      
+      html += '<button onclick="showModal(\'view-yearly-rotation\')" class="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg font-bold text-sm transition-all">查看全年</button>';
+      html += '</div>';
+      
+      container.innerHTML = html;
+    }
+
+    // Admin functions
+    function showAdminLogin() {
+      if (isAdmin) {
+        isAdmin = false;
+        updateAdminUI();
+        showToast('已退出管理員模式', 'info');
+        return;
+      }
+      showModal('admin-login');
+    }
+
+    function attemptAdminLogin() {
+      const password = document.getElementById('admin-password').value;
+      if (password === ADMIN_PASSWORD) {
+        isAdmin = true;
+        closeModal();
+        updateAdminUI();
+        showToast('已進入管理員模式', 'success');
+      } else {
+        document.getElementById('admin-login-error').classList.remove('hidden');
+        setTimeout(() => document.getElementById('admin-login-error').classList.add('hidden'), 3000);
+      }
+    }
+
+    function updateAdminUI() {
+      document.getElementById('admin-badge').classList.toggle('hidden', !isAdmin);
+      document.getElementById('admin-controls').classList.toggle('hidden', !isAdmin || currentTab !== 'board');
+      document.getElementById('rotation-manage-btn').classList.toggle('hidden', !isAdmin);
+      document.getElementById('add-event-btn').classList.toggle('hidden', !isAdmin);
+      document.getElementById('settings-btn').classList.toggle('hidden', !isAdmin);
+      toggleHeaderEdit(isAdmin);
+      renderDashboard();
+      renderCurrentMonthRotation();
+      // 登出後必須重新渲染月曆，否則日期格子上的 onclick 仍綁定 edit-event
+      if (currentTab === 'calendar') {
+        renderCalendar();
+      }
+    }
+
+    // Drag and Drop for Projects
+    function startDrag(e, projectId) {
+      draggedCard = projectId;
+      dragSource = null;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('projectId', projectId);
+      e.target.closest('.project-card').classList.add('dragging');
+    }
+
+    function allowDrop(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
+
+    function dragOver(e, projectId) {
+      e.preventDefault();
+      const card = e.currentTarget;
+      if (draggedCard !== projectId) {
+        card.classList.add('drag-over');
+      }
+    }
+
+    function dragLeave(e) {
+      e.currentTarget.classList.remove('drag-over');
+    }
+
+    function drop(e, targetProjectId) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+      
+      const sourceProjectId = e.dataTransfer.getData('projectId');
+      if (sourceProjectId === targetProjectId) return;
+      
+      const sourceProject = allData.find(d => d.__backendId === sourceProjectId);
+      const targetProject = allData.find(d => d.__backendId === targetProjectId);
+      
+      if (sourceProject && targetProject && sourceProject.category_id === targetProject.category_id) {
+        const tempOrder = sourceProject.sort_order || 0;
+        sourceProject.sort_order = targetProject.sort_order || 0;
+        targetProject.sort_order = tempOrder;
+        
+        saveDataToStorage();
+        renderDashboard();
+        showToast('順序已更新', 'success');
+      }
+      
+      draggedCard = null;
+    }
+
+    function endDrag(e) {
+      e.target.closest('.project-card')?.classList.remove('dragging');
+      draggedCard = null;
+    }
+
+    // Rotation Order Drag and Drop
+    function startRotationOrderDrag(e, index) {
+      draggedRotationOrder = index;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('index', index);
+      e.target.closest('.rotation-order-item').classList.add('dragging');
+    }
+
+    function allowRotationOrderDrop(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
+
+    function dragOverRotationOrder(e, index) {
+      e.preventDefault();
+      const item = e.currentTarget;
+      if (draggedRotationOrder !== index) {
+        item.style.borderColor = '#8b5cf6';
+        item.style.background = '#f9f5ff';
+      }
+    }
+
+    function dragLeaveRotationOrder(e) {
+      e.currentTarget.style.borderColor = '#e5e7eb';
+      e.currentTarget.style.background = 'white';
+    }
+
+    function dropRotationOrder(e, targetIndex) {
+      e.preventDefault();
+      e.currentTarget.style.borderColor = '#e5e7eb';
+      e.currentTarget.style.background = 'white';
+      
+      const sourceIndex = parseInt(e.dataTransfer.getData('index'));
+      if (sourceIndex === targetIndex) return;
+      
+      const order = getRotationOrder();
+      if (sourceIndex >= 0 && sourceIndex < order.length && targetIndex >= 0 && targetIndex < order.length) {
+        // Move item from sourceIndex to targetIndex
+        const [movedItem] = order.splice(sourceIndex, 1);
+        order.splice(targetIndex, 0, movedItem);
+        
+        const orderRecord = allData.find(d => d.type === 'rotation_order');
+        if (orderRecord) {
+          orderRecord.order_list = JSON.stringify(order);
+          saveDataToStorage();
+        }
+        
+        showToast('輪值順序已更新', 'success');
+        showModal('manage-rotation');
+        renderCurrentMonthRotation();
+      }
+      
+      draggedRotationOrder = null;
+    }
+
+    function endRotationOrderDrag(e) {
+      e.target.closest('.rotation-order-item')?.classList.remove('dragging');
+      draggedRotationOrder = null;
+    }
+
+    // Job Order Drag and Drop
+    function startJobOrderDrag(e, index) {
+      draggedJobOrder = index;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('jobIndex', index);
+      e.target.closest('.rotation-job-item').classList.add('dragging');
+    }
+
+    function allowJobOrderDrop(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
+
+    function dragOverJobOrder(e, index) {
+      e.preventDefault();
+      const item = e.currentTarget;
+      if (draggedJobOrder !== index) {
+        item.style.borderColor = '#10b981';
+        item.style.background = '#f0fdf4';
+      }
+    }
+
+    function dragLeaveJobOrder(e) {
+      e.currentTarget.style.borderColor = '#e5e7eb';
+      e.currentTarget.style.background = 'white';
+    }
+
+    function dropJobOrder(e, targetIndex) {
+      e.preventDefault();
+      e.currentTarget.style.borderColor = '#e5e7eb';
+      e.currentTarget.style.background = 'white';
+      
+      const sourceIndex = parseInt(e.dataTransfer.getData('jobIndex'));
+      if (sourceIndex === targetIndex) return;
+      
+      const rotations = getRotations();
+      if (sourceIndex >= 0 && sourceIndex < rotations.length && targetIndex >= 0 && targetIndex < rotations.length) {
+        // Update rotation_order for all items
+        rotations.forEach((r, idx) => {
+          if (idx === sourceIndex) {
+            r.rotation_order = targetIndex;
+          } else if (sourceIndex < targetIndex && idx > sourceIndex && idx <= targetIndex) {
+            r.rotation_order = idx - 1;
+          } else if (sourceIndex > targetIndex && idx >= targetIndex && idx < sourceIndex) {
+            r.rotation_order = idx + 1;
+          }
+        });
+        
+        saveDataToStorage();
+        showToast('職位順序已更新', 'success');
+        showModal('manage-rotation');
+        renderCurrentMonthRotation();
+      }
+      
+      draggedJobOrder = null;
+    }
+
+    function endJobOrderDrag(e) {
+      e.target.closest('.rotation-job-item')?.classList.remove('dragging');
+      draggedJobOrder = null;
+    }
+
+    // Modal Management
+    function showModal(type, data = {}) {
+      const modal = document.getElementById('modal-container');
+      const content = document.getElementById('modal-content');
+      let html = '';
+      
+      switch(type) {
+        case 'admin-login':
+          html = '<div class="p-8"><div class="flex items-center gap-3 mb-6"><svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg><h3 class="text-2xl font-bold text-gray-800">管理員登入</h3></div><input type="password" id="admin-password" class="input-field w-full px-5 py-3 rounded-xl mb-4 font-medium" placeholder="請輸入管理員密碼" onkeypress="if(event.key===\'Enter\')attemptAdminLogin()"><div id="admin-login-error" class="hidden text-red-600 text-sm mb-4 p-3 bg-red-50 rounded-xl font-medium border border-red-200">密碼錯誤</div><div class="flex gap-3"><button onclick="closeModal()" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-700 transition-all">取消</button><button onclick="attemptAdminLogin()" class="flex-1 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">登入</button></div></div>';
+          break;
+          
+        case 'add-category':
+          html = '<div class="p-8"><h3 class="text-2xl font-bold text-gray-800 mb-2 flex items-center gap-3"><svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>新增製作類別</h3><p class="text-sm text-gray-500 mb-6 ml-9 font-medium">選擇類別顏色來標示不同的製作類別</p><input type="text" id="category-name" class="input-field w-full px-5 py-3 rounded-xl mb-6 font-medium" placeholder="例如：短影音、長影音、Podcast"><label class="category-color-label">選擇類別顏色：</label><div class="color-palette" id="category-color-palette">';
+          COLOR_PALETTE.forEach((color, idx) => {
+            html += '<div class="color-option' + (idx === 0 ? ' selected' : '') + '" style="background: ' + color.hex + ';" onclick="selectCategoryColor(\'' + color.hex + '\', \'' + color.dark + '\', \'' + color.light + '\')" data-color="' + color.hex + '" title="' + color.name + '"></div>';
+          });
+          html += '</div><input type="hidden" id="category-color" value="' + COLOR_PALETTE[0].hex + '"><input type="hidden" id="category-color-dark" value="' + COLOR_PALETTE[0].dark + '"><input type="hidden" id="category-color-light" value="' + COLOR_PALETTE[0].light + '"><div class="flex gap-3 mt-8"><button onclick="closeModal()" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-700 transition-all">取消</button><button onclick="addCategory()" class="flex-1 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">新增</button></div></div>';
+          break;
+          
+        case 'add-project':
+          html = '<div class="p-8"><h3 class="text-2xl font-bold text-gray-800 mb-2 flex items-center gap-3"><svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m7-10a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>新增主題看板</h3><p class="text-sm text-gray-500 mb-6 ml-9 font-medium">類別：' + data.categoryName + '</p><input type="text" id="project-name" class="input-field w-full px-5 py-3 rounded-xl mb-6 font-medium" placeholder="例如：婦產部孫醫師介紹"><input type="hidden" id="project-category-id" value="' + data.categoryId + '"><div class="flex gap-3"><button onclick="closeModal()" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-700 transition-all">取消</button><button onclick="addProject()" class="flex-1 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">新增</button></div></div>';
+          break;
+          
+        case 'edit-project':
+          const project = allData.find(d => d.__backendId === data.projectId);
+          if (!project) break;
+          
+          const category = allData.find(d => d.__backendId === project.category_id);
+          const catColor = category?.color || '#3b82f6';
+          const assignments = allData.filter(d => d.type === 'assignment' && d.project_id === data.projectId);
+          const staffList = getStaffList();
+          const rolesList = getRolesList();
+          
+          // Create a Set of existing assignment combinations to prevent duplicates
+          const existingAssignments = new Set(assignments.map(a => `${a.role}-${a.staff_name}`));
+          
+          html = '<div class="p-8"><h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3"><svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>編輯主題看板</h3>';
+          html += '<div class="mb-6"><label class="block text-sm font-bold text-gray-600 mb-2">主題名稱</label><input type="text" id="edit-project-name" class="input-field w-full px-5 py-3 rounded-xl font-medium" value="' + project.name + '"></div>';
+          html += '<div class="mb-6"><label class="block text-sm font-bold text-gray-600 mb-2">備註</label><textarea id="edit-project-notes" class="input-field w-full px-5 py-3 rounded-xl font-medium" rows="3" placeholder="輸入備註...">' + (project.notes || '') + '</textarea></div>';
+          html += '<div class="flex items-center gap-3 mb-6"><input type="checkbox" id="edit-project-active" ' + (project.is_active ? 'checked' : '') + ' class="w-5 h-5 rounded accent-green-600"><label class="font-bold text-gray-700">標記為進行中</label></div>';
+          
+          // Staff assignments section
+          html += '<div class="mb-6"><label class="block text-sm font-bold text-gray-600 mb-3">人員分配</label><div id="assignments-list" class="space-y-2 mb-4">';
+          assignments.forEach(a => {
+            html += '<div class="flex items-center gap-2 p-3 bg-gray-50 rounded-lg" data-assignment-id="' + a.__backendId + '">';
+            html += '<span class="px-3 py-1 rounded-lg text-white font-bold text-sm" style="background: ' + catColor + ';">' + a.role + '</span>';
+            html += '<span class="flex-1 font-medium">' + a.staff_name + '</span>';
+            html += '<button onclick="removeAssignment(\'' + a.__backendId + '\')" class="text-red-500 hover:text-red-700 font-bold">✕</button>';
+            html += '</div>';
+          });
+          html += '</div>';
+          
+          // Add new assignment - FIXED: No duplicate options
+          html += '<div class="flex gap-2"><select id="new-assignment-role" class="input-field flex-1 px-3 py-2 rounded-lg font-medium"><option value="">選擇職位</option>';
+          rolesList.forEach(r => {
+            html += '<option value="' + r.name + '">' + r.name + '</option>';
+          });
+          html += '</select><select id="new-assignment-staff" class="input-field flex-1 px-3 py-2 rounded-lg font-medium"><option value="">選擇人員</option>';
+          // Only show unique staff names
+          const uniqueStaff = [...new Set(staffList.map(s => s.name))];
+          uniqueStaff.forEach(name => {
+            html += '<option value="' + name + '">' + name + '</option>';
+          });
+          html += '</select><button onclick="addAssignment(\'' + data.projectId + '\')" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700">新增</button></div></div>';
+          
+          html += '<input type="hidden" id="edit-project-id" value="' + data.projectId + '">';
+          html += '<div class="flex gap-3"><button onclick="closeModal()" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-700 transition-all">取消</button><button onclick="updateProject()" class="flex-1 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">儲存</button></div></div>';
+          break;
+          
+        case 'manage-staff':
+          const staffListManage = getStaffList();
+          let staffHtml = '';
+          // Get unique staff names only
+          const uniqueStaffNames = [...new Set(staffListManage.map(s => s.name))];
+          const uniqueStaffItems = uniqueStaffNames.map(name => staffListManage.find(s => s.name === name));
+          
+          if (uniqueStaffItems.length) {
+            uniqueStaffItems.forEach(s => {
+              staffHtml += '<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg mb-2"><span class="flex-1 font-medium">' + s.name + '</span><button onclick="deleteStaff(\'' + s.__backendId + '\')" class="text-red-500 hover:text-red-700 font-bold text-sm">刪除</button></div>';
+            });
+          } else {
+            staffHtml = '<p class="text-gray-500 text-center py-4">尚無人員</p>';
+          }
+          html = '<div class="p-8"><h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3"><svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>管理人員</h3><div class="mb-6">' + staffHtml + '</div><div class="flex gap-2 mb-6"><input type="text" id="new-staff-name" class="input-field flex-1 px-4 py-2 rounded-lg font-medium" placeholder="新增人員名稱"><button onclick="addStaff()" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700">新增</button></div><button onclick="closeModal()" class="w-full py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-700 transition-all">關閉</button></div>';
+          break;
+          
+        case 'manage-roles':
+          const rolesListManage = getRolesList();
+          let rolesHtml = '';
+          if (rolesListManage.length) {
+            rolesListManage.forEach(r => {
+              rolesHtml += '<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg mb-2"><span class="flex-1 font-medium">' + r.name + '</span><button onclick="deleteRole(\'' + r.__backendId + '\')" class="text-red-500 hover:text-red-700 font-bold text-sm">刪除</button></div>';
+            });
+          } else {
+            rolesHtml = '<p class="text-gray-500 text-center py-4">尚無職稱</p>';
+          }
+          html = '<div class="p-8"><h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3"><svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>管理職稱</h3><div class="mb-6">' + rolesHtml + '</div><div class="flex gap-2 mb-6"><input type="text" id="new-role-name" class="input-field flex-1 px-4 py-2 rounded-lg font-medium" placeholder="新增職稱"><button onclick="addRole()" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700">新增</button></div><button onclick="closeModal()" class="w-full py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-700 transition-all">關閉</button></div>';
+          break;
+          
+        case 'manage-rotation':
+          const rotations = getRotations();
+          const order = getRotationOrder();
+          const allStaff = getStaffList();
+          const uniqueStaffForRotation = [...new Set(allStaff.map(s => s.name))];
+          
+          html = '<div class="p-8"><h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3"><svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>輪值設定</h3>';
+          
+          // Current rotation order - Draggable
+          html += '<div class="mb-6"><h4 class="font-bold text-gray-700 mb-3 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>當前輪值順序 <span class="text-sm text-gray-400 font-normal">(可拖拉調整順序)</span></h4>';
+          html += '<div id="rotation-order-list">';
+          order.forEach((name, idx) => {
+            html += '<div class="rotation-order-item" draggable="true" ondragstart="startRotationOrderDrag(event, ' + idx + ')" ondragover="dragOverRotationOrder(event, ' + idx + ')" ondragleave="dragLeaveRotationOrder(event)" ondrop="dropRotationOrder(event, ' + idx + ')" ondragend="endRotationOrderDrag(event)">';
+            html += '<div class="rotation-order-handle"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/></svg></div>';
+            html += '<span class="text-purple-600 font-bold">' + (idx + 1) + '</span>';
+            html += '<span class="flex-1 font-medium">' + name + '</span>';
+            html += '<button onclick="removeFromRotationOrder(' + idx + ')" class="text-red-500 hover:text-red-700 text-sm font-bold">移除</button>';
+            html += '</div>';
+          });
+          html += '</div>';
+          
+          // Add to rotation order
+          html += '<div class="flex gap-2 mt-3"><select id="add-to-order-staff" class="input-field flex-1 px-3 py-2 rounded-lg font-medium"><option value="">選擇人員加入輪值</option>';
+          uniqueStaffForRotation.forEach(name => {
+            if (!order.includes(name)) {
+              html += '<option value="' + name + '">' + name + '</option>';
+            }
+          });
+          html += '</select><button onclick="addToRotationOrder()" class="px-4 py-2 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700">加入</button></div></div>';
+          
+          // Job positions - Draggable
+          html += '<div class="mb-6"><h4 class="font-bold text-gray-700 mb-3 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>職位設定 <span class="text-sm text-gray-400 font-normal">(可拖拉調整順序)</span></h4>';
+          html += '<div id="rotation-jobs-list">';
+          rotations.forEach((r, idx) => {
+            html += '<div class="rotation-job-item" draggable="true" ondragstart="startJobOrderDrag(event, ' + idx + ')" ondragover="dragOverJobOrder(event, ' + idx + ')" ondragleave="dragLeaveJobOrder(event)" ondrop="dropJobOrder(event, ' + idx + ')" ondragend="endJobOrderDrag(event)">';
+            html += '<div class="rotation-order-handle"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/></svg></div>';
+            html += '<span class="text-emerald-600 font-bold">' + (idx + 1) + '</span>';
+            html += '<span class="flex-1 font-medium">' + r.job_name + '</span>';
+            html += '<select onchange="updateRotationStartMonth(\'' + r.__backendId + '\', this.value)" class="px-2 py-1 border rounded text-sm">';
+            for (let m = 0; m < 12; m++) {
+              html += '<option value="' + m + '"' + (parseInt(r.starting_month) === m ? ' selected' : '') + '>從' + MONTHS[m] + '開始</option>';
+            }
+            html += '</select>';
+            html += '<button onclick="deleteRotation(\'' + r.__backendId + '\')" class="text-red-500 hover:text-red-700 text-sm font-bold">刪除</button>';
+            html += '</div>';
+          });
+          html += '</div>';
+          
+          // Add new job
+          html += '<div class="flex gap-2 mt-3"><input type="text" id="new-rotation-job" class="input-field flex-1 px-3 py-2 rounded-lg font-medium" placeholder="新增職位名稱"><button onclick="addRotationJob()" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700">新增</button></div></div>';
+          
+          // Rotation notes
+          html += '<div class="mb-6"><h4 class="font-bold text-gray-700 mb-3">輪值備註</h4><textarea id="rotation-notes" class="input-field w-full px-4 py-3 rounded-lg font-medium" rows="2" placeholder="輸入輪值備註...">' + (rotations[0]?.notes || '') + '</textarea><button onclick="saveRotationNotes()" class="mt-2 px-4 py-2 bg-gray-600 text-white rounded-lg font-bold hover:bg-gray-700 text-sm">儲存備註</button></div>';
+          
+          html += '<button onclick="closeModal()" class="w-full py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-700 transition-all">關閉</button></div>';
+          break;
+          
+        case 'view-yearly-rotation':
+          const yearlyRotations = getRotations();
+          const yearlyOrder = getRotationOrder();
+          
+          html = '<div class="p-8"><h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3"><svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>全年輪值表</h3>';
+          html += '<div class="yearly-grid">';
+          
+          for (let m = 0; m < 12; m++) {
+            html += '<div class="month-card"><div class="month-title">' + MONTHS[m] + '</div>';
+            yearlyRotations.forEach((r, idx) => {
+              const staff = getRotationForMonthAndJob(m, idx);
+              html += '<div class="month-item"><span class="month-item-label">' + r.job_name + '</span><span class="month-item-staff">' + (staff || '未設定') + '</span></div>';
+            });
+            html += '</div>';
+          }
+          
+          html += '</div><button onclick="closeModal()" class="w-full py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-700 transition-all mt-6">關閉</button></div>';
+          break;
+          
+        case 'add-event':
+          html = '<div class="p-8"><h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3"><svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>新增活動</h3>';
+          html += '<div class="mb-4"><label class="block text-sm font-bold text-gray-600 mb-2">活動標題</label><input type="text" id="event-title" class="input-field w-full px-4 py-3 rounded-xl font-medium" placeholder="輸入活動標題"></div>';
+          html += '<div class="mb-4"><label class="block text-sm font-bold text-gray-600 mb-2">連接網址 <span class="text-gray-400 font-normal">(可省略)</span></label><input type="text" id="event-link" class="input-field w-full px-4 py-3 rounded-xl font-medium" placeholder="https://..."></div>';
+          html += '<div class="mb-4"><label class="block text-sm font-bold text-gray-600 mb-2">日期</label><input type="date" id="event-date" class="input-field w-full px-4 py-3 rounded-xl font-medium" value="' + formatDate(new Date()) + '"></div>';
+          html += '<div class="mb-4"><label class="block text-sm font-bold text-gray-600 mb-2">顏色</label><div class="event-color-selector">';
+          EVENT_COLORS.forEach((color, idx) => {
+            html += '<div class="event-color-btn' + (idx === 0 ? ' selected' : '') + '" style="background: ' + color.hex + ';" onclick="selectEventColor(\'' + color.hex + '\')" data-color="' + color.hex + '" title="' + color.name + '"></div>';
+          });
+          html += '</div><input type="hidden" id="event-color" value="' + EVENT_COLORS[0].hex + '"></div>';
+          html += '<div class="mb-6"><label class="block text-sm font-bold text-gray-600 mb-2">備註</label><textarea id="event-notes" class="input-field w-full px-4 py-3 rounded-xl font-medium" rows="3" placeholder="輸入備註..."></textarea></div>';
+          html += '<div class="flex gap-3"><button onclick="closeModal()" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-700 transition-all">取消</button><button onclick="addEvent()" class="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">新增</button></div></div>';
+          break;
+          
+        case 'edit-event':
+          // 權限門衛：非管理員不允許進入編輯模式，強制轉到唯讀視圖
+          if (!isAdmin) {
+            showModal('view-event', { eventId: data.eventId });
+            return;
+          }
+          const event = calendarEvents.find(e => e.id === data.eventId);
+          if (!event) break;
+          
+          html = '<div class="p-8"><h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3"><svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>編輯活動</h3>';
+          html += '<div class="mb-4"><label class="block text-sm font-bold text-gray-600 mb-2">活動標題</label><input type="text" id="event-title" class="input-field w-full px-4 py-3 rounded-xl font-medium" value="' + event.title + '"></div>';
+          html += '<div class="mb-4"><label class="block text-sm font-bold text-gray-600 mb-2">連接網址 <span class="text-gray-400 font-normal">(可省略)</span></label><input type="text" id="event-link" class="input-field w-full px-4 py-3 rounded-xl font-medium" placeholder="https://..." value="' + (event.link || '') + '"></div>';
+          html += '<div class="mb-4"><label class="block text-sm font-bold text-gray-600 mb-2">日期</label><input type="date" id="event-date" class="input-field w-full px-4 py-3 rounded-xl font-medium" value="' + event.date + '"></div>';
+          html += '<div class="mb-4"><label class="block text-sm font-bold text-gray-600 mb-2">顏色</label><div class="event-color-selector">';
+          EVENT_COLORS.forEach((color) => {
+            html += '<div class="event-color-btn' + (color.hex === event.color ? ' selected' : '') + '" style="background: ' + color.hex + ';" onclick="selectEventColor(\'' + color.hex + '\')" data-color="' + color.hex + '" title="' + color.name + '"></div>';
+          });
+          html += '</div><input type="hidden" id="event-color" value="' + event.color + '"></div>';
+          html += '<div class="mb-6"><label class="block text-sm font-bold text-gray-600 mb-2">備註</label><textarea id="event-notes" class="input-field w-full px-4 py-3 rounded-xl font-medium" rows="3">' + (event.notes || '') + '</textarea></div>';
+          html += '<div class="flex gap-3"><button onclick="deleteEvent(\'' + event.id + '\')" class="py-3 px-6 bg-red-100 hover:bg-red-200 rounded-xl font-bold text-red-600 transition-all">刪除</button><button onclick="closeModal()" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-700 transition-all">取消</button><button onclick="updateEvent(\'' + event.id + '\')" class="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">儲存</button></div></div>';
+          break;
+          
+        case 'day-events':
+          // 權限門衛：非管理員不允許進入此管理日視圖，強制轉到唯讀視圖
+          if (!isAdmin) {
+            const guardDayEvents = calendarEvents.filter(e => e.date === data.date);
+            if (guardDayEvents.length > 0) {
+              showModal('view-day-events', { date: data.date, events: guardDayEvents });
+            } else {
+              closeModal();
+            }
+            return;
+          }
+          const dayDate = data.date;
+          const dayEvents = calendarEvents.filter(e => e.date === dayDate);
+          const displayDate = new Date(dayDate);
+          
+          html = '<div class="p-8"><h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3"><svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' + (displayDate.getMonth() + 1) + '月' + displayDate.getDate() + '日</h3>';
+          
+          if (dayEvents.length > 0) {
+            html += '<div class="space-y-3 mb-6">';
+            dayEvents.forEach(event => {
+              html += '<div class="p-4 rounded-xl border-l-4" style="border-color: ' + event.color + '; background: ' + event.color + '10;">';
+              html += '<div class="flex items-center justify-between mb-2"><span class="font-bold text-gray-800">' + event.title + '</span>';
+              html += '<button onclick="showModal(\'edit-event\', {eventId: \'' + event.id + '\'})" class="text-blue-600 hover:text-blue-800 font-bold text-sm">編輯</button></div>';
+              if (event.notes) {
+                html += '<p class="text-sm text-gray-600">' + event.notes + '</p>';
+              }
+              html += '</div>';
+            });
+            html += '</div>';
+          } else {
+            html += '<p class="text-gray-500 text-center py-8">這天沒有活動</p>';
+          }
+          
+          html += '<div class="flex gap-3"><button onclick="closeModal()" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-700 transition-all">關閉</button><button onclick="showAddEventForDate(\'' + dayDate + '\')" class="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>新增活動</button></div></div>';
+          break;
+          
+        case 'view-event':
+          // Read-only view for non-admin users
+          const viewEvent = calendarEvents.find(e => e.id === data.eventId);
+          if (!viewEvent) break;
+          
+          html = '<div class="p-8"><h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3"><svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>活動詳情</h3>';
+          html += '<div class="p-4 rounded-xl border-l-4 mb-6" style="border-color: ' + viewEvent.color + '; background: ' + viewEvent.color + '10;">';
+          html += '<div class="font-bold text-gray-800 text-lg mb-2">' + viewEvent.title + '</div>';
+          if (viewEvent.link) {
+            html += '<div class="mt-2"><a href="' + viewEvent.link + '" target="_blank" class="text-emerald-600 hover:text-emerald-800 text-sm font-bold flex items-center gap-1 hover:underline">🔗 ' + viewEvent.link + '</a></div>';
+          }
+          html += '<div class="text-sm text-gray-500 mb-2">' + viewEvent.date + '</div>';
+          if (viewEvent.notes) {
+            html += '<p class="text-gray-600 mt-3 pt-3 border-t border-gray-200">' + viewEvent.notes + '</p>';
+          }
+          html += '</div>';
+          html += '<button onclick="closeModal()" class="w-full py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-700 transition-all">關閉</button></div>';
+          break;
+          
+        case 'view-day-events':
+          const viewDate = data.date;
+          const viewEvents = data.events;
+          const viewDisplayDate = new Date(viewDate);
+          
+          html = '<div class="p-8"><h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3"><svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' + (viewDisplayDate.getMonth() + 1) + '月' + viewDisplayDate.getDate() + '日</h3>';
+          
+          html += '<div class="space-y-3 mb-6">';
+          viewEvents.forEach(event => {
+            html += '<div class="p-4 rounded-xl border-l-4" style="border-color: ' + event.color + '; background: ' + event.color + '10;">';
+            html += '<div class="font-bold text-gray-800 mb-2">' + event.title + '</div>';
+            if (event.link) {
+              html += '<div class="mt-1"><a href="' + event.link + '" target="_blank" class="text-emerald-600 hover:text-emerald-800 text-sm font-bold flex items-center gap-1 hover:underline">🔗 ' + event.link + '</a></div>';
+            }
+            if (event.notes) {
+              html += '<p class="text-sm text-gray-600">' + event.notes + '</p>';
+            }
+            html += '</div>';
+          });
+          html += '</div>';
+          
+          html += '<button onclick="closeModal()" class="w-full py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-700 transition-all">關閉</button></div>';
+          break;
+          
+        case 'delete-category':
+          html = '<div class="p-8"><h3 class="text-2xl font-bold text-red-600 mb-4 flex items-center gap-3"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>刪除類別</h3><p class="text-gray-600 mb-6">確定要刪除「' + data.categoryName + '」類別嗎？此操作將刪除該類別下所有的主題看板，且無法復原。</p><input type="hidden" id="delete-category-id" value="' + data.categoryId + '"><div class="flex gap-3"><button onclick="closeModal()" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-700 transition-all">取消</button><button onclick="confirmDeleteCategory()" class="flex-1 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">刪除</button></div></div>';
+          break;
+          
+        case 'delete-project':
+          html = '<div class="p-8"><h3 class="text-2xl font-bold text-red-600 mb-4 flex items-center gap-3"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>刪除主題看板</h3><p class="text-gray-600 mb-6">確定要刪除「' + data.projectName + '」嗎？此操作無法復原。</p><input type="hidden" id="delete-project-id" value="' + data.projectId + '"><div class="flex gap-3"><button onclick="closeModal()" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-700 transition-all">取消</button><button onclick="confirmDeleteProject()" class="flex-1 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">刪除</button></div></div>';
+          break;
+          
+        case 'settings':
+          const currentUrl = GOOGLE_SCRIPT_URL || '';
+          const connectionStatus = useGoogleSheets ? '<span class="text-emerald-600 font-bold">已連接</span>' : '<span class="text-gray-500">未連接 (使用本地儲存)</span>';
+          
+          html = '<div class="p-8"><h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3"><svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>系統設定</h3>';
+          
+          html += '<div class="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200"><div class="flex items-center gap-2 mb-2"><svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span class="font-bold text-blue-800">Google Sheets 連接狀態</span></div><p class="text-sm text-blue-700">' + connectionStatus + '</p></div>';
+          
+          html += '<div class="mb-6"><label class="block text-sm font-bold text-gray-600 mb-2">Google Apps Script 網址</label><input type="text" id="google-script-url" class="input-field w-full px-4 py-3 rounded-xl font-medium" placeholder="https://script.google.com/macros/s/..." value="' + currentUrl + '"><p class="text-xs text-gray-500 mt-2">請先按照下方說明部署 Google Apps Script，然後將網址貼到此處</p></div>';
+          
+          html += '<div class="mb-6"><button onclick="testGoogleConnection()" class="w-full py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-lg font-bold transition-all flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>測試連接</button></div>';
+          
+          html += '<div class="mb-6 p-4 bg-amber-50 rounded-xl border border-amber-200"><div class="flex items-center gap-2 mb-3"><svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg><span class="font-bold text-amber-800">設定說明</span></div><ol class="text-sm text-amber-800 space-y-2 ml-7 list-decimal"><li>開啟 Google Sheets 並建立新試算表</li><li>點擊「擴充功能」>「Apps Script」</li><li>複製下方程式碼並貼上</li><li>點擊「部署」>「新增部署」</li><li>選擇「網頁應用程式」</li><li>存取權限設為「所有人」</li><li>複製部署網址並貼到上方欄位</li></ol></div>';
+          
+          html += '<div class="mb-6"><button onclick="showGoogleScriptCode()" class="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-bold transition-all flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>顯示 Google Apps Script 程式碼</button></div>';
+          
+          html += '<div class="flex gap-3"><button onclick="closeModal()" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-700 transition-all">取消</button><button onclick="saveGoogleScriptUrl()" class="flex-1 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">儲存設定</button></div></div>';
+          break;
+          
+        case 'google-script-code':
+          html = '<div class="p-8"><h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3"><svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>Google Apps Script 程式碼</h3>';
+          html += '<p class="text-sm text-gray-600 mb-4">請複製以下程式碼到 Google Apps Script 編輯器中：</p>';
+          html += '<div class="relative"><pre id="script-code" class="bg-gray-900 text-green-400 p-4 rounded-xl text-xs overflow-x-auto max-h-96 overflow-y-auto font-mono">' + getGoogleScriptCode() + '</pre><button onclick="copyScriptCode()" class="absolute top-2 right-2 px-3 py-1 bg-white/20 hover:bg-white/30 text-white rounded-lg text-xs font-bold">複製</button></div>';
+          html += '<div class="flex gap-3 mt-6"><button onclick="showModal(\'settings\')" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-700 transition-all">返回設定</button></div></div>';
+          break;
+      }
+      
+      content.innerHTML = html;
+      modal.classList.remove('hidden');
+    }
+
+    function showAddEventForDate(dateStr) {
+      showModal('add-event');
+      setTimeout(() => {
+        document.getElementById('event-date').value = dateStr;
+      }, 0);
+    }
+
+    function closeModal() {
+      document.getElementById('modal-container').classList.add('hidden');
+    }
+
+    // Color selection
+    function selectCategoryColor(hex, dark, light) {
+      document.querySelectorAll('#category-color-palette .color-option').forEach(el => el.classList.remove('selected'));
+      document.querySelector('[data-color="' + hex + '"]').classList.add('selected');
+      document.getElementById('category-color').value = hex;
+      document.getElementById('category-color-dark').value = dark;
+      document.getElementById('category-color-light').value = light;
+    }
+
+    function selectEventColor(hex) {
+      document.querySelectorAll('.event-color-btn').forEach(el => el.classList.remove('selected'));
+      document.querySelector('.event-color-btn[data-color="' + hex + '"]').classList.add('selected');
+      document.getElementById('event-color').value = hex;
+    }
+
+    // CRUD Operations
+    function addCategory() {
+      const name = document.getElementById('category-name').value.trim();
+      if (!name) {
+        showToast('請輸入類別名稱', 'error');
+        return;
+      }
+      
+      const newCategory = {
+        __backendId: 'category_' + generateId(),
+        type: 'category',
+        name: name,
+        color: document.getElementById('category-color').value,
+        color_dark: document.getElementById('category-color-dark').value,
+        color_light: document.getElementById('category-color-light').value,
+        sort_order: getCategories().length
+      };
+      
+      allData.push(newCategory);
+      saveDataToStorage();
+      closeModal();
+      renderDashboard();
+      showToast('類別已新增', 'success');
+    }
+
+    function addProject() {
+      const name = document.getElementById('project-name').value.trim();
+      const categoryId = document.getElementById('project-category-id').value;
+      
+      if (!name) {
+        showToast('請輸入主題名稱', 'error');
+        return;
+      }
+      
+      const newProject = {
+        __backendId: 'project_' + generateId(),
+        type: 'project',
+        name: name,
+        category_id: categoryId,
+        is_active: false,
+        notes: '',
+        sort_order: getProjectsForCategory(categoryId).length
+      };
+      
+      allData.push(newProject);
+      saveDataToStorage();
+      closeModal();
+      renderDashboard();
+      showToast('主題看板已新增', 'success');
+    }
+
+    function updateProject() {
+      const projectId = document.getElementById('edit-project-id').value;
+      const name = document.getElementById('edit-project-name').value.trim();
+      const notes = document.getElementById('edit-project-notes').value.trim();
+      const isActive = document.getElementById('edit-project-active').checked;
+      
+      if (!name) {
+        showToast('請輸入主題名稱', 'error');
+        return;
+      }
+      
+      const project = allData.find(d => d.__backendId === projectId);
+      if (project) {
+        project.name = name;
+        project.notes = notes;
+        project.is_active = isActive;
+        saveDataToStorage();
+        closeModal();
+        renderDashboard();
+        showToast('主題看板已更新', 'success');
+      }
+    }
+
+    function addAssignment(projectId) {
+      const role = document.getElementById('new-assignment-role').value;
+      const staffName = document.getElementById('new-assignment-staff').value;
+      
+      if (!role || !staffName) {
+        showToast('請選擇職位和人員', 'error');
+        return;
+      }
+      
+      // Check for duplicates
+      const existingAssignment = allData.find(d => 
+        d.type === 'assignment' && 
+        d.project_id === projectId && 
+        d.role === role && 
+        d.staff_name === staffName
+      );
+      
+      if (existingAssignment) {
+        showToast('此人員已被分配至該職位', 'error');
+        return;
+      }
+      
+      const newAssignment = {
+        __backendId: 'assignment_' + generateId(),
+        type: 'assignment',
+        project_id: projectId,
+        role: role,
+        staff_name: staffName
+      };
+      
+      allData.push(newAssignment);
+      saveDataToStorage();
+      showModal('edit-project', { projectId: projectId });
+      showToast('人員已分配', 'success');
+    }
+
+    function removeAssignment(assignmentId) {
+      const assignment = allData.find(d => d.__backendId === assignmentId);
+      if (assignment) {
+        const projectId = assignment.project_id;
+        allData = allData.filter(d => d.__backendId !== assignmentId);
+        saveDataToStorage();
+        showModal('edit-project', { projectId: projectId });
+        showToast('人員已移除', 'success');
+      }
+    }
+
+    function confirmDeleteCategory() {
+      const categoryId = document.getElementById('delete-category-id').value;
+      
+      // Delete all projects in this category
+      const projectIds = allData.filter(d => d.type === 'project' && d.category_id === categoryId).map(p => p.__backendId);
+      
+      // Delete all assignments for those projects
+      allData = allData.filter(d => !(d.type === 'assignment' && projectIds.includes(d.project_id)));
+      
+      // Delete all projects
+      allData = allData.filter(d => !(d.type === 'project' && d.category_id === categoryId));
+      
+      // Delete the category
+      allData = allData.filter(d => d.__backendId !== categoryId);
+      
+      saveDataToStorage();
+      closeModal();
+      renderDashboard();
+      showToast('類別已刪除', 'success');
+    }
+
+    function confirmDeleteProject() {
+      const projectId = document.getElementById('delete-project-id').value;
+      
+      // Delete all assignments
+      allData = allData.filter(d => !(d.type === 'assignment' && d.project_id === projectId));
+      
+      // Delete the project
+      allData = allData.filter(d => d.__backendId !== projectId);
+      
+      saveDataToStorage();
+      closeModal();
+      renderDashboard();
+      showToast('主題看板已刪除', 'success');
+    }
+
+    // Staff management
+    function addStaff() {
+      const name = document.getElementById('new-staff-name').value.trim();
+      if (!name) {
+        showToast('請輸入人員名稱', 'error');
+        return;
+      }
+      
+      // Check if staff already exists
+      const existingStaff = allData.find(d => d.type === 'staff' && d.name === name);
+      if (existingStaff) {
+        showToast('此人員已存在', 'error');
+        return;
+      }
+      
+      const newStaff = {
+        __backendId: 'staff_' + generateId(),
+        type: 'staff',
+        name: name
+      };
+      
+      allData.push(newStaff);
+      saveDataToStorage();
+      showModal('manage-staff');
+      showToast('人員已新增', 'success');
+    }
+
+    function deleteStaff(staffId) {
+      const staff = allData.find(d => d.__backendId === staffId);
+      if (staff) {
+        // Remove from rotation order
+        const orderRecord = allData.find(d => d.type === 'rotation_order');
+        if (orderRecord) {
+          const order = JSON.parse(orderRecord.order_list || '[]');
+          const newOrder = order.filter(name => name !== staff.name);
+          orderRecord.order_list = JSON.stringify(newOrder);
+        }
+        
+        allData = allData.filter(d => d.__backendId !== staffId);
+        saveDataToStorage();
+        showModal('manage-staff');
+        renderCurrentMonthRotation();
+        showToast('人員已刪除', 'success');
+      }
+    }
+
+    // Role management
+    function addRole() {
+      const name = document.getElementById('new-role-name').value.trim();
+      if (!name) {
+        showToast('請輸入職稱', 'error');
+        return;
+      }
+      
+      const newRole = {
+        __backendId: 'role_' + generateId(),
+        type: 'role',
+        name: name
+      };
+      
+      allData.push(newRole);
+      saveDataToStorage();
+      showModal('manage-roles');
+      showToast('職稱已新增', 'success');
+    }
+
+    function deleteRole(roleId) {
+      allData = allData.filter(d => d.__backendId !== roleId);
+      saveDataToStorage();
+      showModal('manage-roles');
+      showToast('職稱已刪除', 'success');
+    }
+
+    // Rotation management
+    function addToRotationOrder() {
+      const staffName = document.getElementById('add-to-order-staff').value;
+      if (!staffName) {
+        showToast('請選擇人員', 'error');
+        return;
+      }
+      
+      const orderRecord = allData.find(d => d.type === 'rotation_order');
+      if (orderRecord) {
+        const order = JSON.parse(orderRecord.order_list || '[]');
+        if (!order.includes(staffName)) {
+          order.push(staffName);
+          orderRecord.order_list = JSON.stringify(order);
+          saveDataToStorage();
+          showModal('manage-rotation');
+          renderCurrentMonthRotation();
+          showToast('已加入輪值', 'success');
+        }
+      }
+    }
+
+    function removeFromRotationOrder(index) {
+      const orderRecord = allData.find(d => d.type === 'rotation_order');
+      if (orderRecord) {
+        const order = JSON.parse(orderRecord.order_list || '[]');
+        order.splice(index, 1);
+        orderRecord.order_list = JSON.stringify(order);
+        saveDataToStorage();
+        showModal('manage-rotation');
+        renderCurrentMonthRotation();
+        showToast('已從輪值移除', 'success');
+      }
+    }
+
+    function addRotationJob() {
+      const jobName = document.getElementById('new-rotation-job').value.trim();
+      if (!jobName) {
+        showToast('請輸入職位名稱', 'error');
+        return;
+      }
+      
+      const rotations = getRotations();
+      const newRotation = {
+        __backendId: 'rotation_' + generateId(),
+        type: 'rotation',
+        job_name: jobName,
+        starting_month: 0,
+        rotation_order: rotations.length,
+        notes: ''
+      };
+      
+      allData.push(newRotation);
+      saveDataToStorage();
+      showModal('manage-rotation');
+      renderCurrentMonthRotation();
+      showToast('職位已新增', 'success');
+    }
+
+    function deleteRotation(rotationId) {
+      allData = allData.filter(d => d.__backendId !== rotationId);
+      
+      // Reorder remaining rotations
+      const rotations = getRotations();
+      rotations.forEach((r, idx) => {
+        r.rotation_order = idx;
+      });
+      
+      saveDataToStorage();
+      showModal('manage-rotation');
+      renderCurrentMonthRotation();
+      showToast('職位已刪除', 'success');
+    }
+
+    function updateRotationStartMonth(rotationId, month) {
+      const rotation = allData.find(d => d.__backendId === rotationId);
+      if (rotation) {
+        rotation.starting_month = parseInt(month);
+        saveDataToStorage();
+        renderCurrentMonthRotation();
+        showToast('起始月份已更新', 'success');
+      }
+    }
+
+    function saveRotationNotes() {
+      const notes = document.getElementById('rotation-notes').value.trim();
+      const rotations = getRotations();
+      if (rotations.length > 0) {
+        rotations[0].notes = notes;
+        saveDataToStorage();
+        renderCurrentMonthRotation();
+        showToast('備註已儲存', 'success');
+      }
+    }
+
+    // Render Dashboard
+    function renderDashboard() {
+      const categories = getCategories();
+      const container = document.getElementById('categories-container');
+      const emptyState = document.getElementById('empty-state');
+      
+      if (categories.length === 0) {
+        container.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      
+      emptyState.classList.add('hidden');
+      let html = '';
+      
+      categories.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)).forEach(category => {
+        const projects = getProjectsForCategory(category.__backendId);
+        const color = category.color || '#3b82f6';
+        const colorDark = category.color_dark || '#1d4ed8';
+        const colorLight = category.color_light || '#eff6ff';
+        
+        html += '<div class="category-column" style="--category-color: ' + color + '; --category-color-dark: ' + colorDark + '; --category-color-light: ' + colorLight + ';">';
+        html += '<div class="category-header" style="--category-color: ' + color + '; --category-color-dark: ' + colorDark + ';">';
+        html += '<h2><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>' + category.name + ' <span class="text-white/70 text-sm font-normal">(' + projects.length + ')</span></h2>';
+        
+        if (isAdmin) {
+          html += '<div class="category-header-controls">';
+          html += '<button onclick="showModal(\'add-project\', {categoryId: \'' + category.__backendId + '\', categoryName: \'' + category.name + '\'})" class="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-white font-bold text-sm transition-all flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>新增</button>';
+          html += '<button onclick="showModal(\'delete-category\', {categoryId: \'' + category.__backendId + '\', categoryName: \'' + category.name + '\'})" class="px-3 py-1.5 bg-red-500/50 hover:bg-red-500/70 rounded-lg text-white font-bold text-sm transition-all">刪除</button>';
+          html += '</div>';
+        }
+        
+        html += '</div>';
+        html += '<div class="projects-list">';
+        
+        if (projects.length === 0) {
+          html += '<div class="empty-column"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg><p>尚無主題看板</p></div>';
+        } else {
+          projects.forEach(project => {
+            const assignments = allData.filter(d => d.type === 'assignment' && d.project_id === project.__backendId);
+            
+            html += '<div class="project-card' + (project.is_active ? ' active-project' : '') + '" style="--category-color: ' + color + '; --category-color-light: ' + colorLight + ';"' + (isAdmin ? ' draggable="true" ondragstart="startDrag(event, \'' + project.__backendId + '\')" ondragover="dragOver(event, \'' + project.__backendId + '\')" ondragleave="dragLeave(event)" ondrop="drop(event, \'' + project.__backendId + '\')" ondragend="endDrag(event)"' : '') + '>';
+            
+            html += '<div class="flex items-start gap-2">';
+            if (isAdmin) {
+              html += '<div class="drag-handle"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/></svg></div>';
+            }
+            html += '<h3 class="project-title flex-1">' + project.name + '</h3>';
+            html += '</div>';
+            
+            if (project.is_active) {
+              html += '<div class="project-active-badge" style="background: ' + color + ';"><div class="active-pulse"></div>進行中</div>';
+            }
+            
+            if (assignments.length > 0) {
+              assignments.forEach(a => {
+                html += '<div class="staff-assignment"><span class="staff-role" style="background: ' + color + ';">' + a.role + '</span><span class="staff-name">' + a.staff_name + '</span></div>';
+              });
+            }
+            
+            if (project.notes) {
+              html += '<div class="notes-field">' + project.notes + '</div>';
+            }
+            
+            if (isAdmin) {
+              html += '<div class="project-controls">';
+              html += '<button onclick="showModal(\'edit-project\', {projectId: \'' + project.__backendId + '\'})" class="project-btn project-btn-edit">編輯</button>';
+              html += '<button onclick="showModal(\'delete-project\', {projectId: \'' + project.__backendId + '\', projectName: \'' + project.name + '\'})" class="project-btn project-btn-delete">刪除</button>';
+              html += '</div>';
+            }
+            
+            html += '</div>';
+          });
+        }
+        
+        html += '</div></div>';
+      });
+      
+      container.innerHTML = html;
+    }
+
+    // Toast notifications
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      
+      let bgColor = 'bg-blue-600';
+      let icon = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+      
+      if (type === 'success') {
+        bgColor = 'bg-emerald-600';
+        icon = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+      } else if (type === 'error') {
+        bgColor = 'bg-red-600';
+        icon = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+      }
+      
+      toast.className = 'toast ' + bgColor + ' text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 pointer-events-auto';
+      toast.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">' + icon + '</svg><span class="font-bold">' + message + '</span>';
+      
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // Google Apps Script functions
+    function getGoogleScriptCode() {
+      return `// Google Apps Script - 媒體業務管理系統資料庫
+// 請將此程式碼複製到 Google Apps Script 編輯器中
+
+const SHEET_NAMES = {
+  DATA: 'Data',
+  EVENTS: 'Events'
+};
+
+function doGet(e) {
+  return handleRequest(e);
+}
+
+function doPost(e) {
+  return handleRequest(e);
+}
+
+function handleRequest(e) {
+  const action = e.parameter.action;
+  let result = { success: false, message: 'Unknown action' };
+  
+  try {
+    switch(action) {
+      case 'getData':
+        result = getData();
+        break;
+      case 'saveData':
+        const data = JSON.parse(e.parameter.data);
+        result = saveData(data);
+        break;
+      case 'getEvents':
+        result = getEvents();
+        break;
+      case 'saveEvents':
+        const events = JSON.parse(e.parameter.events);
+        result = saveEvents(events);
+        break;
+      case 'test':
+        result = { success: true, message: '連接成功！' };
+        break;
+    }
+  } catch(error) {
+    result = { success: false, message: error.toString() };
+  }
+  
+  return ContentService
+    .createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function getOrCreateSheet(sheetName) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+  }
+  return sheet;
+}
+
+function getData() {
+  const sheet = getOrCreateSheet(SHEET_NAMES.DATA);
+  const lastRow = sheet.getLastRow();
+  
+  if (lastRow === 0) {
+    return { success: true, data: [] };
+  }
+  
+  const data = sheet.getRange(1, 1, lastRow, 1).getValues();
+  const parsedData = data.map(row => {
+    try {
+      return JSON.parse(row[0]);
+    } catch(e) {
+      return null;
+    }
+  }).filter(item => item !== null);
+  
+  return { success: true, data: parsedData };
+}
+
+function saveData(dataArray) {
+  const sheet = getOrCreateSheet(SHEET_NAMES.DATA);
+  sheet.clear();
+  
+  if (dataArray.length > 0) {
+    const values = dataArray.map(item => [JSON.stringify(item)]);
+    sheet.getRange(1, 1, values.length, 1).setValues(values);
+  }
+  
+  return { success: true, message: '資料已儲存' };
+}
+
+function getEvents() {
+  const sheet = getOrCreateSheet(SHEET_NAMES.EVENTS);
+  const lastRow = sheet.getLastRow();
+  
+  if (lastRow === 0) {
+    return { success: true, events: [] };
+  }
+  
+  const data = sheet.getRange(1, 1, lastRow, 1).getValues();
+  const parsedEvents = data.map(row => {
+    try {
+      return JSON.parse(row[0]);
+    } catch(e) {
+      return null;
+    }
+  }).filter(item => item !== null);
+  
+  return { success: true, events: parsedEvents };
+}
+
+function saveEvents(eventsArray) {
+  const sheet = getOrCreateSheet(SHEET_NAMES.EVENTS);
+  sheet.clear();
+  
+  if (eventsArray.length > 0) {
+    const values = eventsArray.map(item => [JSON.stringify(item)]);
+    sheet.getRange(1, 1, values.length, 1).setValues(values);
+  }
+  
+  return { success: true, message: '活動已儲存' };
+}`;
+    }
+
+    function showGoogleScriptCode() {
+      showModal('google-script-code');
+    }
+
+    function copyScriptCode() {
+      const code = getGoogleScriptCode();
+      navigator.clipboard.writeText(code).then(() => {
+        showToast('程式碼已複製到剪貼簿', 'success');
+      }).catch(() => {
+        showToast('複製失敗，請手動選取複製', 'error');
+      });
+    }
+
+    function saveGoogleScriptUrl() {
+      const url = document.getElementById('google-script-url').value.trim();
+      
+      if (url) {
+        localStorage.setItem('google_script_url', url);
+        GOOGLE_SCRIPT_URL = url;
+        useGoogleSheets = true;
+        showToast('設定已儲存，將使用 Google Sheets 作為資料庫', 'success');
+      } else {
+        localStorage.removeItem('google_script_url');
+        GOOGLE_SCRIPT_URL = '';
+        useGoogleSheets = false;
+        showToast('已清除 Google Sheets 連接，將使用本地儲存', 'info');
+      }
+      
+      closeModal();
+    }
+
+    async function testGoogleConnection() {
+      const url = document.getElementById('google-script-url').value.trim();
+      
+      if (!url) {
+        showToast('請先輸入 Google Apps Script 網址', 'error');
+        return;
+      }
+      
+      showToast('正在測試連接...', 'info');
+      
+      try {
+        const response = await fetch(url + '?action=test');
+        const result = await response.json();
+        
+        if (result.success) {
+          showToast('連接成功！', 'success');
+        } else {
+          showToast('連接失敗：' + result.message, 'error');
+        }
+      } catch(error) {
+        showToast('連接失敗：' + error.message, 'error');
+      }
+    }
+
+    async function syncWithGoogleSheets() {
+      if (!useGoogleSheets || !GOOGLE_SCRIPT_URL) return;
+      
+      try {
+        // Sync main data
+        const dataResponse = await fetch(GOOGLE_SCRIPT_URL + '?action=saveData&data=' + encodeURIComponent(JSON.stringify(allData)));
+        
+        // Sync events
+        const eventsResponse = await fetch(GOOGLE_SCRIPT_URL + '?action=saveEvents&events=' + encodeURIComponent(JSON.stringify(calendarEvents)));
+        
+      } catch(error) {
+        console.error('Google Sheets sync error:', error);
+      }
+    }
+
+    async function loadFromGoogleSheets() {
+      if (!useGoogleSheets || !GOOGLE_SCRIPT_URL) return false;
+      
+      try {
+        // Load main data
+        const dataResponse = await fetch(GOOGLE_SCRIPT_URL + '?action=getData');
+        const dataResult = await dataResponse.json();
+        
+        if (dataResult.success && dataResult.data.length > 0) {
+          allData = dataResult.data;
+          localStorage.setItem(STORAGE_KEYS.data, JSON.stringify(allData));
+        }
+        
+        // Load events
+        const eventsResponse = await fetch(GOOGLE_SCRIPT_URL + '?action=getEvents');
+        const eventsResult = await eventsResponse.json();
+        
+        if (eventsResult.success && eventsResult.events.length > 0) {
+          calendarEvents = eventsResult.events;
+          localStorage.setItem(STORAGE_KEYS.events, JSON.stringify(calendarEvents));
+        }
+        
+        return true;
+      } catch(error) {
+        console.error('Google Sheets load error:', error);
+        return false;
+      }
+    }
+
+    // Initialize on load
+    // ─── Header Info Save / Load ───
+    const HEADER_STORAGE_KEY = 'media_management_header';
+
+    function loadHeaderInfo() {
+      const saved = localStorage.getItem(HEADER_STORAGE_KEY);
+      if (saved) {
+        const info = JSON.parse(saved);
+        applyHeaderInfo(info);
+      }
+    }
+
+    function applyHeaderInfo(info) {
+      // Update display elements
+      document.getElementById('dashboard-title').textContent = info.title || '公關部媒體業務進度管理';
+      document.getElementById('header-subtitle-display').textContent = info.subtitle || 'Media Project Management System';
+      const extraEl = document.getElementById('header-extra-display');
+      if (info.extra) {
+        extraEl.textContent = info.extra;
+        extraEl.classList.remove('hidden');
+      } else {
+        extraEl.textContent = '';
+        extraEl.classList.add('hidden');
+      }
+      // Update input values (for when admin panel is shown)
+      document.getElementById('header-title-input').value = info.title || '公關部媒體業務進度管理';
+      document.getElementById('header-subtitle-input').value = info.subtitle || 'Media Project Management System';
+      document.getElementById('header-extra-input').value = info.extra || '';
+    }
+
+    function saveHeaderInfo() {
+      const info = {
+        title: document.getElementById('header-title-input').value.trim() || '公關部媒體業務進度管理',
+        subtitle: document.getElementById('header-subtitle-input').value.trim() || 'Media Project Management System',
+        extra: document.getElementById('header-extra-input').value.trim()
+      };
+      localStorage.setItem(HEADER_STORAGE_KEY, JSON.stringify(info));
+      applyHeaderInfo(info);
+      showToast('抬頭資訊已儲存', 'success');
+    }
+
+    function toggleHeaderEdit(show) {
+      document.getElementById('header-display').classList.toggle('hidden', show);
+      document.getElementById('header-edit').classList.toggle('hidden', !show);
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    
+    // Close modal on outside click
+    document.getElementById('modal-container').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeModal();
+      }
+    });
+  </script>
+</body>
+</html>
