@@ -838,8 +838,8 @@
     const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
     
     // Google Apps Script Web App URL - Set this after deploying your script
-    let GOOGLE_SCRIPT_URL = localStorage.getItem('google_script_url') || '';
-    let useGoogleSheets = !!GOOGLE_SCRIPT_URL;
+    let GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxYP2SvHcbjjjxswRu1aF41mnGZ8Wc2ha2IW7-OREQsa9hE0muewCnhzrdLfRX2KrQCkw/exec';
+    let useGoogleSheets = true;
     
     const COLOR_PALETTE = [
       { hex: '#3b82f6', dark: '#1d4ed8', light: '#eff6ff', name: '藍色' },
@@ -2555,4 +2555,5 @@ function saveEvents(eventsArray) {
   </script>
 </body>
 </html>
+
 
