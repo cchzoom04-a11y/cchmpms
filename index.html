@@ -901,8 +901,14 @@
         if (!loaded) {
           loadDataFromStorage();
         }
+        // 載入 config（抬頭資訊等）
+        const configLoaded = await loadConfigFromGoogleSheets();
+        if (!configLoaded) {
+          loadHeaderInfo();  // fallback to localStorage
+        }
       } else {
         loadDataFromStorage();
+        loadHeaderInfo();
       }
       
       // 雙層防衛：無論上面哪條路徑，只要 allData 最後還是空的，就強制 init 預設資料
@@ -928,7 +934,6 @@
       renderCurrentMonthRotation();
       renderCalendar();
       updateAdminUI();
-      loadHeaderInfo();
     }
 
     // Storage functions
@@ -1133,8 +1138,8 @@
           if (isAdmin) {
             eventsHtml += `<div class="calendar-event" style="background: ${event.color};" onclick="event.stopPropagation(); showModal('edit-event', {eventId: '${event.id}'})">${event.title}${event.link ? ' 🔗' : ''}</div>`;
           } else {
-            const clickAction = event.link ? `window.open('${event.link}', '_blank')` : `showModal('view-event', {eventId: '${event.id}'})`;
-            eventsHtml += `<div class="calendar-event" style="background: ${event.color}; cursor: ${event.link ? 'pointer' : 'default'};" onclick="event.stopPropagation(); ${clickAction}" title="${event.link || ''}">${event.title}${event.link ? ' 🔗' : ''}</div>`;
+            // 非管理員：不論有無連結都顯示詳情 modal
+            eventsHtml += `<div class="calendar-event" style="background: ${event.color}; cursor: pointer;" onclick="event.stopPropagation(); showModal('view-event', {eventId: '${event.id}'})">${event.title}${event.link ? ' 🔗' : ''}</div>`;
           }
         });
         if (dayEvents.length > 3) {
@@ -1834,14 +1839,17 @@
           html = '<div class="p-8"><h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3"><svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>活動詳情</h3>';
           html += '<div class="p-4 rounded-xl border-l-4 mb-6" style="border-color: ' + viewEvent.color + '; background: ' + viewEvent.color + '10;">';
           html += '<div class="font-bold text-gray-800 text-lg mb-2">' + viewEvent.title + '</div>';
-          if (viewEvent.link) {
-            html += '<div class="mt-2"><a href="' + viewEvent.link + '" target="_blank" class="text-emerald-600 hover:text-emerald-800 text-sm font-bold flex items-center gap-1 hover:underline">🔗 ' + viewEvent.link + '</a></div>';
-          }
-          html += '<div class="text-sm text-gray-500 mb-2">' + viewEvent.date + '</div>';
+          html += '<div class="text-sm text-gray-500 mb-2">📅 ' + viewEvent.date + '</div>';
           if (viewEvent.notes) {
-            html += '<p class="text-gray-600 mt-3 pt-3 border-t border-gray-200">' + viewEvent.notes + '</p>';
+            html += '<div class="mt-3 pt-3 border-t border-gray-200"><div class="text-xs font-bold text-gray-500 mb-1">備註</div><p class="text-gray-600">' + viewEvent.notes + '</p></div>';
           }
           html += '</div>';
+          
+          // 連結按鈕放在下方（如果有的話）
+          if (viewEvent.link) {
+            html += '<a href="' + viewEvent.link + '" target="_blank" class="block w-full py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all text-center mb-3 flex items-center justify-center gap-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>前往連結</a>';
+          }
+          
           html += '<button onclick="closeModal()" class="w-full py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-700 transition-all">關閉</button></div>';
           break;
           
@@ -1852,15 +1860,15 @@
           
           html = '<div class="p-8"><h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3"><svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' + (viewDisplayDate.getMonth() + 1) + '月' + viewDisplayDate.getDate() + '日</h3>';
           
-          html += '<div class="space-y-3 mb-6">';
+          html += '<div class="space-y-4 mb-6">';
           viewEvents.forEach(event => {
             html += '<div class="p-4 rounded-xl border-l-4" style="border-color: ' + event.color + '; background: ' + event.color + '10;">';
             html += '<div class="font-bold text-gray-800 mb-2">' + event.title + '</div>';
-            if (event.link) {
-              html += '<div class="mt-1"><a href="' + event.link + '" target="_blank" class="text-emerald-600 hover:text-emerald-800 text-sm font-bold flex items-center gap-1 hover:underline">🔗 ' + event.link + '</a></div>';
-            }
             if (event.notes) {
-              html += '<p class="text-sm text-gray-600">' + event.notes + '</p>';
+              html += '<p class="text-sm text-gray-600 mb-2">' + event.notes + '</p>';
+            }
+            if (event.link) {
+              html += '<a href="' + event.link + '" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-lg font-bold transition-all mt-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>前往連結</a>';
             }
             html += '</div>';
           });
@@ -2608,6 +2616,35 @@ function saveEvents(eventsArray) {
       }
     }
 
+    async function syncConfigToGoogleSheets(configObj) {
+      if (!useGoogleSheets || !GOOGLE_SCRIPT_URL) return;
+      
+      try {
+        await fetch(GOOGLE_SCRIPT_URL + '?action=saveConfig&config=' + encodeURIComponent(JSON.stringify(configObj)));
+      } catch(error) {
+        console.error('Google Sheets config sync error:', error);
+      }
+    }
+
+    async function loadConfigFromGoogleSheets() {
+      if (!useGoogleSheets || !GOOGLE_SCRIPT_URL) return false;
+      
+      try {
+        const response = await fetch(GOOGLE_SCRIPT_URL + '?action=getConfig');
+        const result = await response.json();
+        
+        if (result.success && result.config && Object.keys(result.config).length > 0) {
+          localStorage.setItem(HEADER_STORAGE_KEY, JSON.stringify(result.config));
+          applyHeaderInfo(result.config);
+          return true;
+        }
+        return false;
+      } catch(error) {
+        console.error('Google Sheets config load error:', error);
+        return false;
+      }
+    }
+
     async function loadFromGoogleSheets() {
       if (!useGoogleSheets || !GOOGLE_SCRIPT_URL) return false;
       
@@ -2677,6 +2714,12 @@ function saveEvents(eventsArray) {
       };
       localStorage.setItem(HEADER_STORAGE_KEY, JSON.stringify(info));
       applyHeaderInfo(info);
+      
+      // 同步到 Google Sheets（如果已連接）
+      if (useGoogleSheets && GOOGLE_SCRIPT_URL) {
+        syncConfigToGoogleSheets(info);
+      }
+      
       showToast('抬頭資訊已儲存', 'success');
     }
 
@@ -2696,6 +2739,7 @@ function saveEvents(eventsArray) {
   </script>
 </body>
 </html>
+
 
 
 
