@@ -142,6 +142,16 @@
       overflow: hidden;
       backdrop-filter: blur(10px);
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      transition: opacity 0.2s, transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    }
+    .category-column.cat-dragging {
+      opacity: 0.45;
+      transform: scale(0.97);
+    }
+    .category-column.cat-drag-over {
+      border-color: #fff;
+      box-shadow: 0 0 0 3px rgba(255,255,255,0.7), 0 12px 40px rgba(0,0,0,0.25);
+      transform: scale(1.02);
     }
     .category-header {
       padding: 20px;
@@ -875,6 +885,7 @@
     let dragSource = null;
     let draggedRotationOrder = null;
     let draggedJobOrder = null;
+    let draggedCategory = null;
 
     // LocalStorage keys
     const STORAGE_KEYS = {
@@ -892,6 +903,25 @@
         }
       } else {
         loadDataFromStorage();
+      }
+      
+      // 雙層防衛：無論上面哪條路徑，只要 allData 最後還是空的，就強制 init 預設資料
+      if (allData.length === 0) {
+        initializeDefaultData();
+      }
+      
+      // 第三層防衛：確保 rotation_order record 存在（可能被意外刪除或 parse 失敗）
+      const rotationOrderRecord = allData.find(d => d.type === 'rotation_order');
+      if (!rotationOrderRecord) {
+        // 自動建立 rotation_order，從現有 staff 裡取出所有唯一的名字
+        const existingStaff = [...new Set(allData.filter(d => d.type === 'staff').map(s => s.name))];
+        const orderList = existingStaff.length > 0 ? existingStaff : DEFAULT_STAFF;
+        allData.push({
+          __backendId: 'rotation_order_' + Date.now(),
+          type: 'rotation_order',
+          order_list: JSON.stringify(orderList)
+        });
+        saveDataToStorage();
       }
       
       renderDashboard();
@@ -1249,7 +1279,7 @@
       
       rotations.forEach((rotation, jobIdx) => {
         const staff = getRotationForMonthAndJob(currentMonth, jobIdx);
-        html += '<div class="rotation-badge">';
+        html += '<div class="rotation-badge" onclick="if(isAdmin)showModal(\'manage-rotation\')" style="' + (isAdmin ? 'cursor:pointer;' : 'cursor:default;') + '">';
         html += '<span>' + rotation.job_name + '：' + (staff || '未設定') + '</span>';
         html += '</div>';
       });
@@ -1360,6 +1390,67 @@
     function endDrag(e) {
       e.target.closest('.project-card')?.classList.remove('dragging');
       draggedCard = null;
+    }
+
+    // ── Category Column Drag and Drop ──────────────────
+    function startCategoryDrag(e, categoryId) {
+      draggedCategory = categoryId;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('categoryId', categoryId);
+      // 短暫 delay 讓瀏覽器抓住拖拉影子後再加 class
+      requestAnimationFrame(() => {
+        const col = e.target.closest('.category-column');
+        if (col) col.classList.add('cat-dragging');
+      });
+    }
+
+    function dragOverCategory(e, categoryId) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (draggedCategory === categoryId) return;
+      // 清除其他欄的 over 狀態
+      document.querySelectorAll('.category-column.cat-drag-over').forEach(el => el.classList.remove('cat-drag-over'));
+      const col = e.currentTarget.closest('.category-column');
+      if (col) col.classList.add('cat-drag-over');
+    }
+
+    function dragLeaveCategory(e) {
+      // relatedTarget 在欄內移動時仍在同一 column 裡，不移除
+      const col = e.currentTarget.closest('.category-column');
+      if (col && !col.contains(e.relatedTarget)) {
+        col.classList.remove('cat-drag-over');
+      }
+    }
+
+    function dropCategory(e, targetCategoryId) {
+      e.preventDefault();
+      document.querySelectorAll('.category-column').forEach(el => {
+        el.classList.remove('cat-drag-over');
+        el.classList.remove('cat-dragging');
+      });
+
+      const sourceCategoryId = e.dataTransfer.getData('categoryId');
+      if (sourceCategoryId === targetCategoryId) { draggedCategory = null; return; }
+
+      const source = allData.find(d => d.__backendId === sourceCategoryId);
+      const target = allData.find(d => d.__backendId === targetCategoryId);
+      if (source && target) {
+        const tmp = source.sort_order ?? 0;
+        source.sort_order = target.sort_order ?? 0;
+        target.sort_order = tmp;
+        saveDataToStorage();
+        renderDashboard();
+        showToast('類別順序已更新', 'success');
+      }
+      draggedCategory = null;
+    }
+
+    function endCategoryDrag(e) {
+      document.querySelectorAll('.category-column').forEach(el => {
+        el.classList.remove('cat-dragging');
+        el.classList.remove('cat-drag-over');
+      });
+      draggedCategory = null;
     }
 
     // Rotation Order Drag and Drop
@@ -1605,13 +1696,17 @@
           html += '</div>';
           
           // Add to rotation order
-          html += '<div class="flex gap-2 mt-3"><select id="add-to-order-staff" class="input-field flex-1 px-3 py-2 rounded-lg font-medium"><option value="">選擇人員加入輪值</option>';
-          uniqueStaffForRotation.forEach(name => {
-            if (!order.includes(name)) {
+          const availableStaff = uniqueStaffForRotation.filter(name => !order.includes(name));
+          if (availableStaff.length === 0) {
+            html += '<div class="mt-3 px-4 py-2 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-700 font-medium">✓ 所有人員已在輪值中</div>';
+          } else {
+            html += '<div class="flex gap-2 mt-3"><select id="add-to-order-staff" class="input-field flex-1 px-3 py-2 rounded-lg font-medium"><option value="">選擇人員加入輪值</option>';
+            availableStaff.forEach(name => {
               html += '<option value="' + name + '">' + name + '</option>';
-            }
-          });
-          html += '</select><button onclick="addToRotationOrder()" class="px-4 py-2 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700">加入</button></div></div>';
+            });
+            html += '</select><button onclick="addToRotationOrder()" class="px-4 py-2 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700">加入</button></div>';
+          }
+          html += '</div>';
           
           // Job positions - Draggable
           html += '<div class="mb-6"><h4 class="font-bold text-gray-700 mb-3 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>職位設定 <span class="text-sm text-gray-400 font-normal">(可拖拉調整順序)</span></h4>';
@@ -2071,37 +2166,70 @@
 
     // Rotation management
     function addToRotationOrder() {
-      const staffName = document.getElementById('add-to-order-staff').value;
+      const el = document.getElementById('add-to-order-staff');
+      if (!el) {
+        showToast('找不到選單元素', 'error');
+        return;
+      }
+      const staffName = el.value;
       if (!staffName) {
         showToast('請選擇人員', 'error');
         return;
       }
       
-      const orderRecord = allData.find(d => d.type === 'rotation_order');
-      if (orderRecord) {
-        const order = JSON.parse(orderRecord.order_list || '[]');
-        if (!order.includes(staffName)) {
-          order.push(staffName);
-          orderRecord.order_list = JSON.stringify(order);
-          saveDataToStorage();
-          showModal('manage-rotation');
-          renderCurrentMonthRotation();
-          showToast('已加入輪值', 'success');
-        }
+      let orderRecord = allData.find(d => d.type === 'rotation_order');
+      if (!orderRecord) {
+        // 自動建立 rotation_order record
+        orderRecord = {
+          __backendId: 'rotation_order_' + Date.now(),
+          type: 'rotation_order',
+          order_list: '[]'
+        };
+        allData.push(orderRecord);
       }
+      
+      const order = JSON.parse(orderRecord.order_list || '[]');
+      if (order.includes(staffName)) {
+        showToast(staffName + ' 已在輪值中', 'error');
+        return;
+      }
+      
+      order.push(staffName);
+      orderRecord.order_list = JSON.stringify(order);
+      saveDataToStorage();
+      renderCurrentMonthRotation();
+      showToast(staffName + ' 已加入輪值', 'success');
+      // 最後才重建 modal，確保 toast 能先顯示
+      showModal('manage-rotation');
     }
 
     function removeFromRotationOrder(index) {
-      const orderRecord = allData.find(d => d.type === 'rotation_order');
-      if (orderRecord) {
-        const order = JSON.parse(orderRecord.order_list || '[]');
-        order.splice(index, 1);
-        orderRecord.order_list = JSON.stringify(order);
+      let orderRecord = allData.find(d => d.type === 'rotation_order');
+      if (!orderRecord) {
+        // rotation_order 不存在，也就沒東西可刪，直接建立一個空的
+        orderRecord = {
+          __backendId: 'rotation_order_' + Date.now(),
+          type: 'rotation_order',
+          order_list: '[]'
+        };
+        allData.push(orderRecord);
         saveDataToStorage();
+        showToast('輪值順序為空', 'error');
         showModal('manage-rotation');
-        renderCurrentMonthRotation();
-        showToast('已從輪值移除', 'success');
+        return;
       }
+      const order = JSON.parse(orderRecord.order_list || '[]');
+      if (index < 0 || index >= order.length) {
+        showToast('索引錯誤', 'error');
+        return;
+      }
+      const removed = order[index];
+      order.splice(index, 1);
+      orderRecord.order_list = JSON.stringify(order);
+      saveDataToStorage();
+      renderCurrentMonthRotation();
+      showToast(removed + ' 已從輪值移除', 'success');
+      showModal('manage-rotation');
     }
 
     function addRotationJob() {
@@ -2185,9 +2313,20 @@
         const colorDark = category.color_dark || '#1d4ed8';
         const colorLight = category.color_light || '#eff6ff';
         
-        html += '<div class="category-column" style="--category-color: ' + color + '; --category-color-dark: ' + colorDark + '; --category-color-light: ' + colorLight + ';">';
+        html += '<div class="category-column' + (isAdmin ? ' cat-draggable' : '') + '"' +
+                ' style="--category-color: ' + color + '; --category-color-dark: ' + colorDark + '; --category-color-light: ' + colorLight + ';"' +
+                (isAdmin ? ' draggable="true"' +
+                  ' ondragstart="startCategoryDrag(event,\'' + category.__backendId + '\')"' +
+                  ' ondragover="dragOverCategory(event,\'' + category.__backendId + '\')"' +
+                  ' ondragleave="dragLeaveCategory(event)"' +
+                  ' ondrop="dropCategory(event,\'' + category.__backendId + '\')"' +
+                  ' ondragend="endCategoryDrag(event)"' : '') + '>';
         html += '<div class="category-header" style="--category-color: ' + color + '; --category-color-dark: ' + colorDark + ';">';
-        html += '<h2><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>' + category.name + ' <span class="text-white/70 text-sm font-normal">(' + projects.length + ')</span></h2>';
+        html += '<h2>';
+        if (isAdmin) {
+          html += '<svg class="w-4 h-4 opacity-60" style="cursor:grab;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 6h.01M16 6h.01M8 12h.01M16 12h.01M8 18h.01M16 18h.01"/></svg>';
+        }
+        html += '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>' + category.name + ' <span class="text-white/70 text-sm font-normal">(' + projects.length + ')</span></h2>';
         
         if (isAdmin) {
           html += '<div class="category-header-controls">';
@@ -2472,26 +2611,28 @@ function saveEvents(eventsArray) {
     async function loadFromGoogleSheets() {
       if (!useGoogleSheets || !GOOGLE_SCRIPT_URL) return false;
       
+      let dataLoaded = false;
       try {
         // Load main data
         const dataResponse = await fetch(GOOGLE_SCRIPT_URL + '?action=getData');
         const dataResult = await dataResponse.json();
         
-        if (dataResult.success && dataResult.data.length > 0) {
+        if (dataResult.success && dataResult.data && dataResult.data.length > 0) {
           allData = dataResult.data;
           localStorage.setItem(STORAGE_KEYS.data, JSON.stringify(allData));
+          dataLoaded = true;
         }
         
         // Load events
         const eventsResponse = await fetch(GOOGLE_SCRIPT_URL + '?action=getEvents');
         const eventsResult = await eventsResponse.json();
         
-        if (eventsResult.success && eventsResult.events.length > 0) {
+        if (eventsResult.success && eventsResult.events && eventsResult.events.length > 0) {
           calendarEvents = eventsResult.events;
           localStorage.setItem(STORAGE_KEYS.events, JSON.stringify(calendarEvents));
         }
         
-        return true;
+        return dataLoaded;
       } catch(error) {
         console.error('Google Sheets load error:', error);
         return false;
@@ -2555,5 +2696,6 @@ function saveEvents(eventsArray) {
   </script>
 </body>
 </html>
+
 
 
