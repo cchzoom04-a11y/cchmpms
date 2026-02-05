@@ -679,16 +679,16 @@
               <div id="header-text-block">
                 <!-- 非管理員：靜態顯示 -->
                 <div id="header-display">
-                  <h1 id="dashboard-title" class="text-2xl font-bold text-white">公關部媒體業務進度管理</h1>
-                  <p id="header-subtitle-display" class="text-blue-100 text-sm font-medium">Media Project Management System</p>
+                  <h1 id="dashboard-title" class="text-2xl font-bold text-white"></h1>
+                  <p id="header-subtitle-display" class="text-blue-100 text-sm font-medium"></p>
                   <p id="header-extra-display" class="text-blue-200 text-xs font-normal mt-0.5 hidden"></p>
                 </div>
                 <!-- 管理員：可編輯輸入欄 -->
                 <div id="header-edit" class="hidden flex flex-col gap-1">
-                  <input id="header-title-input" type="text" value="公關部媒體業務進度管理"
+                  <input id="header-title-input" type="text" value=""
                     class="bg-white/20 border border-white/30 focus:border-white focus:outline-none rounded-lg px-3 py-1 text-white font-bold text-xl w-full placeholder-white/50"
                     placeholder="輸入標題">
-                  <input id="header-subtitle-input" type="text" value="Media Project Management System"
+                  <input id="header-subtitle-input" type="text" value=""
                     class="bg-white/10 border border-white/20 focus:border-white/60 focus:outline-none rounded-lg px-3 py-1 text-blue-100 text-sm w-full placeholder-blue-300/50"
                     placeholder="輸入副標題">
                   <input id="header-extra-input" type="text" value=""
@@ -842,6 +842,62 @@
   <div id="toast-container" class="fixed bottom-6 right-6 z-50 space-y-3 pointer-events-none"></div>
 
   <script>
+    // ================================================================
+    // 立即載入抬頭資訊（在任何 async 操作前先顯示，避免閃爍）
+    // ================================================================
+    (function() {
+      const HEADER_KEY = 'media_management_header';
+      const defaults = {
+        title: '公關部媒體業務進度管理',
+        subtitle: 'Media Project Management System',
+        extra: ''
+      };
+      
+      // 立即從 localStorage 讀取
+      let info = defaults;
+      try {
+        const saved = localStorage.getItem(HEADER_KEY);
+        if (saved) {
+          info = JSON.parse(saved);
+        }
+      } catch(e) {
+        console.error('Failed to load header from localStorage:', e);
+      }
+      
+      // DOM ready 後立即顯示
+      function applyHeaderNow() {
+        const titleEl = document.getElementById('dashboard-title');
+        const subtitleEl = document.getElementById('header-subtitle-display');
+        const extraEl = document.getElementById('header-extra-display');
+        const titleInput = document.getElementById('header-title-input');
+        const subtitleInput = document.getElementById('header-subtitle-input');
+        const extraInput = document.getElementById('header-extra-input');
+        
+        if (titleEl) titleEl.textContent = info.title || defaults.title;
+        if (subtitleEl) subtitleEl.textContent = info.subtitle || defaults.subtitle;
+        if (extraEl) {
+          if (info.extra) {
+            extraEl.textContent = info.extra;
+            extraEl.classList.remove('hidden');
+          } else {
+            extraEl.classList.add('hidden');
+          }
+        }
+        if (titleInput) titleInput.value = info.title || defaults.title;
+        if (subtitleInput) subtitleInput.value = info.subtitle || defaults.subtitle;
+        if (extraInput) extraInput.value = info.extra || '';
+      }
+      
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', applyHeaderNow);
+      } else {
+        applyHeaderNow();
+      }
+    })();
+    
+    // ================================================================
+    // 主程式開始
+    // ================================================================
     const ADMIN_PASSWORD = 'cch9031';
     const DEFAULT_STAFF = ['黃月芳', '沈聖涵', '吉洋舒度'];
     const DEFAULT_ROLES = ['場記', '錄影', '後製'];
@@ -934,6 +990,17 @@
       renderCurrentMonthRotation();
       renderCalendar();
       updateAdminUI();
+      
+      // 最後確保 header 已顯示（預防性措施，因為前面的立即載入 script 應該已處理）
+      ensureHeaderDisplayed();
+    }
+    
+    function ensureHeaderDisplayed() {
+      // 如果 title 是空的，強制載入一次
+      const titleEl = document.getElementById('dashboard-title');
+      if (titleEl && !titleEl.textContent) {
+        loadHeaderInfo();
+      }
     }
 
     // Storage functions
@@ -2605,12 +2672,30 @@ function saveEvents(eventsArray) {
       if (!useGoogleSheets || !GOOGLE_SCRIPT_URL) return;
       
       try {
-        // Sync main data
-        const dataResponse = await fetch(GOOGLE_SCRIPT_URL + '?action=saveData&data=' + encodeURIComponent(JSON.stringify(allData)));
+        // Sync main data - 使用 POST 避免 URL 長度限制
+        const dataResponse = await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: 'action=saveData&data=' + encodeURIComponent(JSON.stringify(allData))
+        });
         
         // Sync events
-        const eventsResponse = await fetch(GOOGLE_SCRIPT_URL + '?action=saveEvents&events=' + encodeURIComponent(JSON.stringify(calendarEvents)));
+        const eventsResponse = await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: 'action=saveEvents&events=' + encodeURIComponent(JSON.stringify(calendarEvents))
+        });
         
+        const dataResult = await dataResponse.json();
+        const eventsResult = await eventsResponse.json();
+        
+        if (!dataResult.success || !eventsResult.success) {
+          console.error('Sync failed:', dataResult, eventsResult);
+        }
       } catch(error) {
         console.error('Google Sheets sync error:', error);
       }
@@ -2620,7 +2705,18 @@ function saveEvents(eventsArray) {
       if (!useGoogleSheets || !GOOGLE_SCRIPT_URL) return;
       
       try {
-        await fetch(GOOGLE_SCRIPT_URL + '?action=saveConfig&config=' + encodeURIComponent(JSON.stringify(configObj)));
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: 'action=saveConfig&config=' + encodeURIComponent(JSON.stringify(configObj))
+        });
+        
+        const result = await response.json();
+        if (!result.success) {
+          console.error('Config sync failed:', result);
+        }
       } catch(error) {
         console.error('Google Sheets config sync error:', error);
       }
