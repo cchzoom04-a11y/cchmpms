@@ -951,30 +951,49 @@
 
     // Initialize
     async function init() {
+      console.log('========================================');
+      console.log('系統初始化開始');
+      console.log('========================================');
+      console.log('useGoogleSheets:', useGoogleSheets);
+      console.log('GOOGLE_SCRIPT_URL:', GOOGLE_SCRIPT_URL);
+      
       // Try to load from Google Sheets first if connected
       if (useGoogleSheets) {
         const loaded = await loadFromGoogleSheets();
+        console.log('[Init] loadFromGoogleSheets 結果:', loaded);
+        
         if (!loaded) {
-          loadDataFromStorage();
+          console.log('[Init] Google Sheets 載入失敗，改用 localStorage');
+          await loadDataFromStorage();
         }
+        
         // 載入 config（抬頭資訊等）
         const configLoaded = await loadConfigFromGoogleSheets();
+        console.log('[Init] loadConfigFromGoogleSheets 結果:', configLoaded);
+        
         if (!configLoaded) {
+          console.log('[Init] Config 載入失敗，改用 localStorage');
           loadHeaderInfo();  // fallback to localStorage
         }
       } else {
-        loadDataFromStorage();
+        console.log('[Init] Google Sheets 未啟用，使用 localStorage');
+        await loadDataFromStorage();
         loadHeaderInfo();
       }
       
+      console.log('[Init] allData 筆數:', allData.length);
+      console.log('[Init] calendarEvents 筆數:', calendarEvents.length);
+      
       // 雙層防衛：無論上面哪條路徑，只要 allData 最後還是空的，就強制 init 預設資料
       if (allData.length === 0) {
-        initializeDefaultData();
+        console.log('[Init] allData 為空，執行 initializeDefaultData()');
+        await initializeDefaultData();
       }
       
       // 第三層防衛：確保 rotation_order record 存在（可能被意外刪除或 parse 失敗）
       const rotationOrderRecord = allData.find(d => d.type === 'rotation_order');
       if (!rotationOrderRecord) {
+        console.log('[Init] rotation_order 不存在，自動建立');
         // 自動建立 rotation_order，從現有 staff 裡取出所有唯一的名字
         const existingStaff = [...new Set(allData.filter(d => d.type === 'staff').map(s => s.name))];
         const orderList = existingStaff.length > 0 ? existingStaff : DEFAULT_STAFF;
@@ -983,9 +1002,10 @@
           type: 'rotation_order',
           order_list: JSON.stringify(orderList)
         });
-        saveDataToStorage();
+        await saveDataToStorage();
       }
       
+      console.log('[Init] 開始渲染 UI...');
       renderDashboard();
       renderCurrentMonthRotation();
       renderCalendar();
@@ -993,6 +1013,10 @@
       
       // 最後確保 header 已顯示（預防性措施，因為前面的立即載入 script 應該已處理）
       ensureHeaderDisplayed();
+      
+      console.log('========================================');
+      console.log('系統初始化完成');
+      console.log('========================================');
     }
     
     function ensureHeaderDisplayed() {
@@ -1004,7 +1028,7 @@
     }
 
     // Storage functions
-    function loadDataFromStorage() {
+    async function loadDataFromStorage() {
       const savedData = localStorage.getItem(STORAGE_KEYS.data);
       const savedEvents = localStorage.getItem(STORAGE_KEYS.events);
       
@@ -1012,7 +1036,7 @@
         allData = JSON.parse(savedData);
       } else {
         // Initialize with default data
-        initializeDefaultData();
+        await initializeDefaultData();
       }
       
       if (savedEvents) {
@@ -1020,23 +1044,23 @@
       }
     }
 
-    function saveDataToStorage() {
+    async function saveDataToStorage() {
       localStorage.setItem(STORAGE_KEYS.data, JSON.stringify(allData));
       // Sync to Google Sheets if connected
       if (useGoogleSheets) {
-        syncWithGoogleSheets();
+        await syncWithGoogleSheets();
       }
     }
 
-    function saveEventsToStorage() {
+    async function saveEventsToStorage() {
       localStorage.setItem(STORAGE_KEYS.events, JSON.stringify(calendarEvents));
       // Sync to Google Sheets if connected
       if (useGoogleSheets) {
-        syncWithGoogleSheets();
+        await syncWithGoogleSheets();
       }
     }
 
-    function initializeDefaultData() {
+    async function initializeDefaultData() {
       // Add default staff
       DEFAULT_STAFF.forEach((name, idx) => {
         allData.push({
@@ -1074,7 +1098,7 @@
         });
       });
       
-      saveDataToStorage();
+      await saveDataToStorage();
     }
 
     // Generate unique ID
@@ -1259,7 +1283,7 @@
       // If no events and not admin, do nothing (can't add events)
     }
 
-    function addEvent(date = null) {
+    async function addEvent(date = null) {
       if (!isAdmin) { showToast('僅管理員可以新增活動', 'error'); closeModal(); return; }
       const title = document.getElementById('event-title').value.trim();
       const eventDate = date || document.getElementById('event-date').value;
@@ -1283,13 +1307,13 @@
       };
       
       calendarEvents.push(newEvent);
-      saveEventsToStorage();
+      await saveEventsToStorage();
       closeModal();
       renderCalendar();
       showToast('活動已新增', 'success');
     }
 
-    function updateEvent(eventId) {
+    async function updateEvent(eventId) {
       if (!isAdmin) { showToast('僅管理員可以編輯活動', 'error'); closeModal(); return; }
       const title = document.getElementById('event-title').value.trim();
       const eventDate = document.getElementById('event-date').value;
@@ -1313,18 +1337,18 @@
           notes: notes,
         link: link
         };
-        saveEventsToStorage();
+        await saveEventsToStorage();
         closeModal();
         renderCalendar();
         showToast('活動已更新', 'success');
       }
     }
 
-    function deleteEvent(eventId) {
+    async function deleteEvent(eventId) {
       if (!isAdmin) { showToast('僅管理員可以刪除活動', 'error'); closeModal(); return; }
       if (confirm('確定要刪除此活動嗎？')) {
         calendarEvents = calendarEvents.filter(e => e.id !== eventId);
-        saveEventsToStorage();
+        await saveEventsToStorage();
         closeModal();
         renderCalendar();
         showToast('活動已刪除', 'success');
@@ -1436,7 +1460,7 @@
       e.currentTarget.classList.remove('drag-over');
     }
 
-    function drop(e, targetProjectId) {
+    async function drop(e, targetProjectId) {
       e.preventDefault();
       e.currentTarget.classList.remove('drag-over');
       
@@ -1451,7 +1475,7 @@
         sourceProject.sort_order = targetProject.sort_order || 0;
         targetProject.sort_order = tempOrder;
         
-        saveDataToStorage();
+        await saveDataToStorage();
         renderDashboard();
         showToast('順序已更新', 'success');
       }
@@ -1494,7 +1518,7 @@
       }
     }
 
-    function dropCategory(e, targetCategoryId) {
+    async function dropCategory(e, targetCategoryId) {
       e.preventDefault();
       document.querySelectorAll('.category-column').forEach(el => {
         el.classList.remove('cat-drag-over');
@@ -1510,7 +1534,7 @@
         const tmp = source.sort_order ?? 0;
         source.sort_order = target.sort_order ?? 0;
         target.sort_order = tmp;
-        saveDataToStorage();
+        await saveDataToStorage();
         renderDashboard();
         showToast('類別順序已更新', 'success');
       }
@@ -1552,7 +1576,7 @@
       e.currentTarget.style.background = 'white';
     }
 
-    function dropRotationOrder(e, targetIndex) {
+    async function dropRotationOrder(e, targetIndex) {
       e.preventDefault();
       e.currentTarget.style.borderColor = '#e5e7eb';
       e.currentTarget.style.background = 'white';
@@ -1569,7 +1593,7 @@
         const orderRecord = allData.find(d => d.type === 'rotation_order');
         if (orderRecord) {
           orderRecord.order_list = JSON.stringify(order);
-          saveDataToStorage();
+          await saveDataToStorage();
         }
         
         showToast('輪值順序已更新', 'success');
@@ -1612,7 +1636,7 @@
       e.currentTarget.style.background = 'white';
     }
 
-    function dropJobOrder(e, targetIndex) {
+    async function dropJobOrder(e, targetIndex) {
       e.preventDefault();
       e.currentTarget.style.borderColor = '#e5e7eb';
       e.currentTarget.style.background = 'white';
@@ -1633,7 +1657,7 @@
           }
         });
         
-        saveDataToStorage();
+        await saveDataToStorage();
         showToast('職位順序已更新', 'success');
         showModal('manage-rotation');
         renderCurrentMonthRotation();
@@ -2010,7 +2034,7 @@
     }
 
     // CRUD Operations
-    function addCategory() {
+    async function addCategory() {
       const name = document.getElementById('category-name').value.trim();
       if (!name) {
         showToast('請輸入類別名稱', 'error');
@@ -2028,13 +2052,13 @@
       };
       
       allData.push(newCategory);
-      saveDataToStorage();
+      await saveDataToStorage();
       closeModal();
       renderDashboard();
       showToast('類別已新增', 'success');
     }
 
-    function addProject() {
+    async function addProject() {
       const name = document.getElementById('project-name').value.trim();
       const categoryId = document.getElementById('project-category-id').value;
       
@@ -2054,13 +2078,13 @@
       };
       
       allData.push(newProject);
-      saveDataToStorage();
+      await saveDataToStorage();
       closeModal();
       renderDashboard();
       showToast('主題看板已新增', 'success');
     }
 
-    function updateProject() {
+    async function updateProject() {
       const projectId = document.getElementById('edit-project-id').value;
       const name = document.getElementById('edit-project-name').value.trim();
       const notes = document.getElementById('edit-project-notes').value.trim();
@@ -2076,14 +2100,14 @@
         project.name = name;
         project.notes = notes;
         project.is_active = isActive;
-        saveDataToStorage();
+        await saveDataToStorage();
         closeModal();
         renderDashboard();
         showToast('主題看板已更新', 'success');
       }
     }
 
-    function addAssignment(projectId) {
+    async function addAssignment(projectId) {
       const role = document.getElementById('new-assignment-role').value;
       const staffName = document.getElementById('new-assignment-staff').value;
       
@@ -2114,23 +2138,23 @@
       };
       
       allData.push(newAssignment);
-      saveDataToStorage();
+      await saveDataToStorage();
       showModal('edit-project', { projectId: projectId });
       showToast('人員已分配', 'success');
     }
 
-    function removeAssignment(assignmentId) {
+    async function removeAssignment(assignmentId) {
       const assignment = allData.find(d => d.__backendId === assignmentId);
       if (assignment) {
         const projectId = assignment.project_id;
         allData = allData.filter(d => d.__backendId !== assignmentId);
-        saveDataToStorage();
+        await saveDataToStorage();
         showModal('edit-project', { projectId: projectId });
         showToast('人員已移除', 'success');
       }
     }
 
-    function confirmDeleteCategory() {
+    async function confirmDeleteCategory() {
       const categoryId = document.getElementById('delete-category-id').value;
       
       // Delete all projects in this category
@@ -2145,13 +2169,13 @@
       // Delete the category
       allData = allData.filter(d => d.__backendId !== categoryId);
       
-      saveDataToStorage();
+      await saveDataToStorage();
       closeModal();
       renderDashboard();
       showToast('類別已刪除', 'success');
     }
 
-    function confirmDeleteProject() {
+    async function confirmDeleteProject() {
       const projectId = document.getElementById('delete-project-id').value;
       
       // Delete all assignments
@@ -2160,14 +2184,14 @@
       // Delete the project
       allData = allData.filter(d => d.__backendId !== projectId);
       
-      saveDataToStorage();
+      await saveDataToStorage();
       closeModal();
       renderDashboard();
       showToast('主題看板已刪除', 'success');
     }
 
     // Staff management
-    function addStaff() {
+    async function addStaff() {
       const name = document.getElementById('new-staff-name').value.trim();
       if (!name) {
         showToast('請輸入人員名稱', 'error');
@@ -2188,12 +2212,12 @@
       };
       
       allData.push(newStaff);
-      saveDataToStorage();
+      await saveDataToStorage();
       showModal('manage-staff');
       showToast('人員已新增', 'success');
     }
 
-    function deleteStaff(staffId) {
+    async function deleteStaff(staffId) {
       const staff = allData.find(d => d.__backendId === staffId);
       if (staff) {
         // Remove from rotation order
@@ -2205,7 +2229,7 @@
         }
         
         allData = allData.filter(d => d.__backendId !== staffId);
-        saveDataToStorage();
+        await saveDataToStorage();
         showModal('manage-staff');
         renderCurrentMonthRotation();
         showToast('人員已刪除', 'success');
@@ -2213,7 +2237,7 @@
     }
 
     // Role management
-    function addRole() {
+    async function addRole() {
       const name = document.getElementById('new-role-name').value.trim();
       if (!name) {
         showToast('請輸入職稱', 'error');
@@ -2227,20 +2251,20 @@
       };
       
       allData.push(newRole);
-      saveDataToStorage();
+      await saveDataToStorage();
       showModal('manage-roles');
       showToast('職稱已新增', 'success');
     }
 
-    function deleteRole(roleId) {
+    async function deleteRole(roleId) {
       allData = allData.filter(d => d.__backendId !== roleId);
-      saveDataToStorage();
+      await saveDataToStorage();
       showModal('manage-roles');
       showToast('職稱已刪除', 'success');
     }
 
     // Rotation management
-    function addToRotationOrder() {
+    async function addToRotationOrder() {
       const el = document.getElementById('add-to-order-staff');
       if (!el) {
         showToast('找不到選單元素', 'error');
@@ -2271,14 +2295,14 @@
       
       order.push(staffName);
       orderRecord.order_list = JSON.stringify(order);
-      saveDataToStorage();
+      await saveDataToStorage();
       renderCurrentMonthRotation();
       showToast(staffName + ' 已加入輪值', 'success');
       // 最後才重建 modal，確保 toast 能先顯示
       showModal('manage-rotation');
     }
 
-    function removeFromRotationOrder(index) {
+    async function removeFromRotationOrder(index) {
       let orderRecord = allData.find(d => d.type === 'rotation_order');
       if (!orderRecord) {
         // rotation_order 不存在，也就沒東西可刪，直接建立一個空的
@@ -2288,7 +2312,7 @@
           order_list: '[]'
         };
         allData.push(orderRecord);
-        saveDataToStorage();
+        await saveDataToStorage();
         showToast('輪值順序為空', 'error');
         showModal('manage-rotation');
         return;
@@ -2301,13 +2325,13 @@
       const removed = order[index];
       order.splice(index, 1);
       orderRecord.order_list = JSON.stringify(order);
-      saveDataToStorage();
+      await saveDataToStorage();
       renderCurrentMonthRotation();
       showToast(removed + ' 已從輪值移除', 'success');
       showModal('manage-rotation');
     }
 
-    function addRotationJob() {
+    async function addRotationJob() {
       const jobName = document.getElementById('new-rotation-job').value.trim();
       if (!jobName) {
         showToast('請輸入職位名稱', 'error');
@@ -2325,13 +2349,13 @@
       };
       
       allData.push(newRotation);
-      saveDataToStorage();
+      await saveDataToStorage();
       showModal('manage-rotation');
       renderCurrentMonthRotation();
       showToast('職位已新增', 'success');
     }
 
-    function deleteRotation(rotationId) {
+    async function deleteRotation(rotationId) {
       allData = allData.filter(d => d.__backendId !== rotationId);
       
       // Reorder remaining rotations
@@ -2340,28 +2364,28 @@
         r.rotation_order = idx;
       });
       
-      saveDataToStorage();
+      await saveDataToStorage();
       showModal('manage-rotation');
       renderCurrentMonthRotation();
       showToast('職位已刪除', 'success');
     }
 
-    function updateRotationStartMonth(rotationId, month) {
+    async function updateRotationStartMonth(rotationId, month) {
       const rotation = allData.find(d => d.__backendId === rotationId);
       if (rotation) {
         rotation.starting_month = parseInt(month);
-        saveDataToStorage();
+        await saveDataToStorage();
         renderCurrentMonthRotation();
         showToast('起始月份已更新', 'success');
       }
     }
 
-    function saveRotationNotes() {
+    async function saveRotationNotes() {
       const notes = document.getElementById('rotation-notes').value.trim();
       const rotations = getRotations();
       if (rotations.length > 0) {
         rotations[0].notes = notes;
-        saveDataToStorage();
+        await saveDataToStorage();
         renderCurrentMonthRotation();
         showToast('備註已儲存', 'success');
       }
@@ -2669,9 +2693,11 @@ function saveEvents(eventsArray) {
     }
 
     async function syncWithGoogleSheets() {
-      if (!useGoogleSheets || !GOOGLE_SCRIPT_URL) return;
+      if (!useGoogleSheets || !GOOGLE_SCRIPT_URL) return false;
       
       try {
+        console.log('[Sync] 開始同步到 Google Sheets...');
+        
         // Sync main data - 使用 POST 避免 URL 長度限制
         const dataResponse = await fetch(GOOGLE_SCRIPT_URL, {
           method: 'POST',
@@ -2693,18 +2719,28 @@ function saveEvents(eventsArray) {
         const dataResult = await dataResponse.json();
         const eventsResult = await eventsResponse.json();
         
+        console.log('[Sync] Data 結果:', dataResult);
+        console.log('[Sync] Events 結果:', eventsResult);
+        
         if (!dataResult.success || !eventsResult.success) {
-          console.error('Sync failed:', dataResult, eventsResult);
+          console.error('[Sync] 同步失敗:', { dataResult, eventsResult });
+          return false;
         }
+        
+        console.log('[Sync] 同步成功！');
+        return true;
       } catch(error) {
-        console.error('Google Sheets sync error:', error);
+        console.error('[Sync] Google Sheets sync error:', error);
+        return false;
       }
     }
 
     async function syncConfigToGoogleSheets(configObj) {
-      if (!useGoogleSheets || !GOOGLE_SCRIPT_URL) return;
+      if (!useGoogleSheets || !GOOGLE_SCRIPT_URL) return false;
       
       try {
+        console.log('[Sync Config] 同步設定到 Google Sheets...');
+        
         const response = await fetch(GOOGLE_SCRIPT_URL, {
           method: 'POST',
           headers: {
@@ -2714,11 +2750,18 @@ function saveEvents(eventsArray) {
         });
         
         const result = await response.json();
+        console.log('[Sync Config] 結果:', result);
+        
         if (!result.success) {
-          console.error('Config sync failed:', result);
+          console.error('[Sync Config] 同步失敗:', result);
+          return false;
         }
+        
+        console.log('[Sync Config] 同步成功！');
+        return true;
       } catch(error) {
-        console.error('Google Sheets config sync error:', error);
+        console.error('[Sync Config] error:', error);
+        return false;
       }
     }
 
@@ -2726,48 +2769,73 @@ function saveEvents(eventsArray) {
       if (!useGoogleSheets || !GOOGLE_SCRIPT_URL) return false;
       
       try {
+        console.log('[Load Config] 請求 getConfig...');
         const response = await fetch(GOOGLE_SCRIPT_URL + '?action=getConfig');
         const result = await response.json();
+        
+        console.log('[Load Config] 回應:', result);
         
         if (result.success && result.config && Object.keys(result.config).length > 0) {
           localStorage.setItem(HEADER_STORAGE_KEY, JSON.stringify(result.config));
           applyHeaderInfo(result.config);
+          console.log('[Load Config] ✓ Config 載入成功:', result.config);
           return true;
         }
+        console.log('[Load Config] ✗ Config 為空');
         return false;
       } catch(error) {
-        console.error('Google Sheets config load error:', error);
+        console.error('[Load Config] ❌ 載入錯誤:', error);
         return false;
       }
     }
 
     async function loadFromGoogleSheets() {
-      if (!useGoogleSheets || !GOOGLE_SCRIPT_URL) return false;
+      if (!useGoogleSheets || !GOOGLE_SCRIPT_URL) {
+        console.log('[Load] Google Sheets 未啟用或未設定 URL');
+        return false;
+      }
+      
+      console.log('[Load] 開始從 Google Sheets 載入資料...');
+      console.log('[Load] Script URL:', GOOGLE_SCRIPT_URL);
       
       let dataLoaded = false;
       try {
         // Load main data
+        console.log('[Load] 請求 getData...');
         const dataResponse = await fetch(GOOGLE_SCRIPT_URL + '?action=getData');
         const dataResult = await dataResponse.json();
+        
+        console.log('[Load] getData 回應:', dataResult);
+        console.log('[Load] 資料筆數:', dataResult.data ? dataResult.data.length : 0);
         
         if (dataResult.success && dataResult.data && dataResult.data.length > 0) {
           allData = dataResult.data;
           localStorage.setItem(STORAGE_KEYS.data, JSON.stringify(allData));
           dataLoaded = true;
+          console.log('[Load] ✓ Data 載入成功:', allData.length, '筆');
+        } else {
+          console.log('[Load] ✗ Data 為空或失敗');
         }
         
         // Load events
+        console.log('[Load] 請求 getEvents...');
         const eventsResponse = await fetch(GOOGLE_SCRIPT_URL + '?action=getEvents');
         const eventsResult = await eventsResponse.json();
+        
+        console.log('[Load] getEvents 回應:', eventsResult);
         
         if (eventsResult.success && eventsResult.events && eventsResult.events.length > 0) {
           calendarEvents = eventsResult.events;
           localStorage.setItem(STORAGE_KEYS.events, JSON.stringify(calendarEvents));
+          console.log('[Load] ✓ Events 載入成功:', calendarEvents.length, '筆');
+        } else {
+          console.log('[Load] ✗ Events 為空或失敗');
         }
         
+        console.log('[Load] 載入完成，dataLoaded =', dataLoaded);
         return dataLoaded;
       } catch(error) {
-        console.error('Google Sheets load error:', error);
+        console.error('[Load] ❌ Google Sheets 載入錯誤:', error);
         return false;
       }
     }
@@ -2802,7 +2870,7 @@ function saveEvents(eventsArray) {
       document.getElementById('header-extra-input').value = info.extra || '';
     }
 
-    function saveHeaderInfo() {
+    async function saveHeaderInfo() {
       const info = {
         title: document.getElementById('header-title-input').value.trim() || '公關部媒體業務進度管理',
         subtitle: document.getElementById('header-subtitle-input').value.trim() || 'Media Project Management System',
@@ -2813,7 +2881,7 @@ function saveEvents(eventsArray) {
       
       // 同步到 Google Sheets（如果已連接）
       if (useGoogleSheets && GOOGLE_SCRIPT_URL) {
-        syncConfigToGoogleSheets(info);
+        await syncConfigToGoogleSheets(info);
       }
       
       showToast('抬頭資訊已儲存', 'success');
@@ -2835,6 +2903,7 @@ function saveEvents(eventsArray) {
   </script>
 </body>
 </html>
+
 
 
 
