@@ -660,6 +660,16 @@
       background: white;
       color: #1e40af;
     }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes fadeOut {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(10px); }
+    }
   </style>
 </head>
 <body class="gradient-bg m-0 p-0">
@@ -907,6 +917,36 @@
     let GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxYP2SvHcbjjjxswRu1aF41mnGZ8Wc2ha2IW7-OREQsa9hE0muewCnhzrdLfRX2KrQCkw/exec';
     let useGoogleSheets = true;
     
+    // ================================================================
+    // 批次同步機制 - 避免頻繁同步造成延遲
+    // ================================================================
+    let syncTimer = null;
+    let syncPending = false;
+    const SYNC_DELAY = 2000; // 2 秒後才同步（期間的修改會合併）
+    
+    function scheduleSyncWithGoogleSheets() {
+      if (!useGoogleSheets || !GOOGLE_SCRIPT_URL) return;
+      
+      // 標記有待同步的資料
+      syncPending = true;
+      
+      // 清除之前的計時器
+      if (syncTimer) {
+        clearTimeout(syncTimer);
+      }
+      
+      // 設定新的計時器：2 秒後才真正同步
+      syncTimer = setTimeout(async () => {
+        if (syncPending) {
+          console.log('[Sync] 執行批次同步...');
+          await syncWithGoogleSheets();
+          syncPending = false;
+        }
+      }, SYNC_DELAY);
+      
+      console.log('[Sync] 已排程同步（2 秒後執行）');
+    }
+    
     const COLOR_PALETTE = [
       { hex: '#3b82f6', dark: '#1d4ed8', light: '#eff6ff', name: '藍色' },
       { hex: '#ef4444', dark: '#b91c1c', light: '#fef2f2', name: '紅色' },
@@ -957,6 +997,13 @@
       console.log('useGoogleSheets:', useGoogleSheets);
       console.log('GOOGLE_SCRIPT_URL:', GOOGLE_SCRIPT_URL);
       
+      // 顯示載入中狀態
+      const mainDashboard = document.getElementById('main-dashboard');
+      if (mainDashboard) {
+        mainDashboard.style.opacity = '0.3';
+        mainDashboard.style.pointerEvents = 'none';
+      }
+      
       // Try to load from Google Sheets first if connected
       if (useGoogleSheets) {
         const loaded = await loadFromGoogleSheets();
@@ -1006,17 +1053,27 @@
       }
       
       console.log('[Init] 開始渲染 UI...');
-      renderDashboard();
-      renderCurrentMonthRotation();
-      renderCalendar();
-      updateAdminUI();
       
-      // 最後確保 header 已顯示（預防性措施，因為前面的立即載入 script 應該已處理）
-      ensureHeaderDisplayed();
-      
-      console.log('========================================');
-      console.log('系統初始化完成');
-      console.log('========================================');
+      // 使用 requestAnimationFrame 確保 DOM 準備好
+      requestAnimationFrame(() => {
+        renderDashboard();
+        renderCurrentMonthRotation();
+        renderCalendar();
+        updateAdminUI();
+        
+        // 最後確保 header 已顯示
+        ensureHeaderDisplayed();
+        
+        // 恢復可見狀態
+        if (mainDashboard) {
+          mainDashboard.style.opacity = '1';
+          mainDashboard.style.pointerEvents = 'auto';
+        }
+        
+        console.log('========================================');
+        console.log('系統初始化完成');
+        console.log('========================================');
+      });
     }
     
     function ensureHeaderDisplayed() {
@@ -1045,18 +1102,22 @@
     }
 
     async function saveDataToStorage() {
+      // 立即儲存到 localStorage（快速）
       localStorage.setItem(STORAGE_KEYS.data, JSON.stringify(allData));
-      // Sync to Google Sheets if connected
+      
+      // 排程批次同步到 Google Sheets（延遲執行，不阻塞）
       if (useGoogleSheets) {
-        await syncWithGoogleSheets();
+        scheduleSyncWithGoogleSheets();
       }
     }
 
     async function saveEventsToStorage() {
+      // 立即儲存到 localStorage（快速）
       localStorage.setItem(STORAGE_KEYS.events, JSON.stringify(calendarEvents));
-      // Sync to Google Sheets if connected
+      
+      // 排程批次同步到 Google Sheets（延遲執行，不阻塞）
       if (useGoogleSheets) {
-        await syncWithGoogleSheets();
+        scheduleSyncWithGoogleSheets();
       }
     }
 
@@ -2698,6 +2759,13 @@ function saveEvents(eventsArray) {
       try {
         console.log('[Sync] 開始同步到 Google Sheets...');
         
+        // 顯示同步狀態（可選，不阻塞 UI）
+        const syncIndicator = document.createElement('div');
+        syncIndicator.id = 'sync-indicator';
+        syncIndicator.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#10b981;color:white;padding:12px 20px;border-radius:8px;font-size:14px;font-weight:bold;box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:10000;animation:fadeIn 0.3s;';
+        syncIndicator.innerHTML = '☁️ 同步中...';
+        document.body.appendChild(syncIndicator);
+        
         // Sync main data - 使用 POST 避免 URL 長度限制
         const dataResponse = await fetch(GOOGLE_SCRIPT_URL, {
           method: 'POST',
@@ -2722,8 +2790,22 @@ function saveEvents(eventsArray) {
         console.log('[Sync] Data 結果:', dataResult);
         console.log('[Sync] Events 結果:', eventsResult);
         
+        // 移除同步指示器
+        if (syncIndicator) {
+          syncIndicator.innerHTML = '✓ 已同步';
+          syncIndicator.style.background = '#10b981';
+          setTimeout(() => {
+            syncIndicator.style.animation = 'fadeOut 0.3s';
+            setTimeout(() => syncIndicator.remove(), 300);
+          }, 1500);
+        }
+        
         if (!dataResult.success || !eventsResult.success) {
           console.error('[Sync] 同步失敗:', { dataResult, eventsResult });
+          if (syncIndicator) {
+            syncIndicator.innerHTML = '✗ 同步失敗';
+            syncIndicator.style.background = '#ef4444';
+          }
           return false;
         }
         
@@ -2731,6 +2813,12 @@ function saveEvents(eventsArray) {
         return true;
       } catch(error) {
         console.error('[Sync] Google Sheets sync error:', error);
+        const syncIndicator = document.getElementById('sync-indicator');
+        if (syncIndicator) {
+          syncIndicator.innerHTML = '✗ 同步錯誤';
+          syncIndicator.style.background = '#ef4444';
+          setTimeout(() => syncIndicator.remove(), 3000);
+        }
         return false;
       }
     }
@@ -2894,6 +2982,19 @@ function saveEvents(eventsArray) {
 
     document.addEventListener('DOMContentLoaded', init);
     
+    // 頁面離開前強制同步（確保資料不丟失）
+    window.addEventListener('beforeunload', async (e) => {
+      if (syncPending && useGoogleSheets) {
+        // 取消計時器
+        if (syncTimer) {
+          clearTimeout(syncTimer);
+        }
+        // 立即同步
+        console.log('[Sync] 頁面關閉前強制同步...');
+        await syncWithGoogleSheets();
+      }
+    });
+    
     // Close modal on outside click
     document.getElementById('modal-container').addEventListener('click', function(e) {
       if (e.target === this) {
@@ -2903,6 +3004,7 @@ function saveEvents(eventsArray) {
   </script>
 </body>
 </html>
+
 
 
 
